@@ -126,6 +126,15 @@ export async function update(ctx: Context, next: Next): Promise<void> {
     await saveVersion((ctx as any).app.db, filterByTk, values.schema, nextVersion);
   }
 
+  // Broadcast updated schema via AG-UI WebSocket Gateway to other sessions editing this schema
+  const gateway = (ctx as any).app.a2uiGateway;
+  if (gateway && values?.schema !== undefined) {
+    gateway.broadcastToSchema(filterByTk, null, {
+      operation: 'setSchema',
+      schema: values.schema,
+    });
+  }
+
   ctx.body = { data: updated };
   await next();
 }

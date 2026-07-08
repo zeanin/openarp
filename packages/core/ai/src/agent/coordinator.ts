@@ -144,11 +144,37 @@ Return ONLY valid JSON. Do not include markdown code block syntax (like \`\`\`js
           });
           const uiStart = Date.now();
           try {
-            const firstCol = results.collections[0]?.name || 'items';
+            // Smart matching of collection based on page prompt
+            let matchedColName = results.collections[0]?.name || 'items';
+            let matchedColFields: string[] = [];
+            for (const col of results.collections) {
+              const colNameOnly = col.name.replace(/^(app|tb)_/, '').toLowerCase();
+              const normalizedPrompt = pagePrompt.toLowerCase();
+              const singularColName = colNameOnly.endsWith('s') ? colNameOnly.slice(0, -1) : colNameOnly;
+              if (
+                normalizedPrompt.includes(colNameOnly) ||
+                normalizedPrompt.includes(singularColName) ||
+                (col.title && normalizedPrompt.includes(col.title.toLowerCase()))
+              ) {
+                matchedColName = col.name;
+                matchedColFields = col.fields.map((f: any) => f.name);
+                break;
+              }
+            }
+            if (matchedColFields.length === 0 && results.collections.length > 0) {
+              const defaultCol = results.collections.find((c: any) => c.name === matchedColName) || results.collections[0];
+              matchedColFields = defaultCol?.fields?.map((f: any) => f.name) || [];
+            }
+
             let schema = await this.a2ui.generatePage({
               prompt: pagePrompt,
-              collection: firstCol,
+              collection: matchedColName,
+              fields: matchedColFields,
               mode: 'create',
+              context: {
+                collections: results.collections.map((c: any) => c.name),
+                existingPages: results.pages.map((p: any) => p.title),
+              },
             });
 
             // Perform self-healing check

@@ -2,8 +2,8 @@
 export { Schema } from './schema';
 
 // React components
-export { SchemaRenderer } from './components/SchemaRenderer';
-export type { SchemaRendererProps } from './components/SchemaRenderer';
+export { SchemaRenderer, treeToFlat, flatToTree } from './components/SchemaRenderer';
+export type { SchemaRendererProps, A2UIComponent } from './components/SchemaRenderer';
 export { SchemaComponent } from './components/SchemaComponent';
 export type { SchemaComponentProps } from './components/SchemaComponent';
 export { DesignableNode } from './components/DesignableNode';

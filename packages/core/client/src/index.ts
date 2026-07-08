@@ -35,6 +35,8 @@ export type { ApplicationOptions } from './application/Application';
 // Re-export schema engine utilities for convenience
 export {
   SchemaRenderer,
+  treeToFlat,
+  flatToTree,
   SchemaComponent,
   registerComponent,
   getComponentRegistry,
@@ -51,6 +53,7 @@ export {
 } from '@formai/schema-engine';
 export type {
   SchemaRendererProps,
+  A2UIComponent,
   SchemaComponentProps,
   ComponentRegistration,
   DesignableContextValue,

@@ -31,11 +31,16 @@ export class Application extends EventEmitter {
   /** Application configuration object */
   config: any;
   private port: number;
-  private server: any;
+  server: any;
   private started = false;
 
   constructor(options: ApplicationOptions) {
     super();
+
+    // Prevent uncaught exception crashes on emitted errors
+    this.on('error', (err: any) => {
+      console.error('[Formai Server Error]', err);
+    });
 
     this.port = options.port ?? 3000;
     this.koa = new Koa();

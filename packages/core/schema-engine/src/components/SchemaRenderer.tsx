@@ -30,6 +30,148 @@ export interface SchemaRendererProps {
  * When designable=true, injects DesignableContext so every
  * SchemaComponent can show design-time overlays.
  */
+export interface A2UIComponent {
+  id: string;
+  type: string;
+  parentId?: string;
+  props?: Record<string, any>;
+  sort?: number;
+  decorator?: string;
+  decoratorProps?: Record<string, any>;
+  [key: string]: any;
+}
+
+export function treeToFlat(schema: any): A2UIComponent[] {
+  if (!schema || typeof schema !== 'object') return [];
+  if (Array.isArray(schema)) return schema;
+  if (Array.isArray(schema.components)) return schema.components;
+
+  const components: A2UIComponent[] = [];
+
+  function traverse(node: any, parentId?: string, name?: string): string {
+    const id = node['x-uid'] || name || `node_${Math.random().toString(36).slice(2, 6)}`;
+    
+    const props = node['x-component-props'] || {};
+    if (node.title && !props.title) {
+      props.title = node.title;
+    }
+    const nodeName = node.name || name;
+    if (nodeName && !props.name) {
+      props.name = nodeName;
+    }
+
+    const comp: A2UIComponent = {
+      id,
+      type: node['x-component'] || 'CardItem',
+      parentId,
+      props,
+      sort: node['x-index'],
+      decorator: node['x-decorator'],
+      decoratorProps: node['x-decorator-props'],
+      // Preserve other schema properties
+      title: node.title,
+      name: node.name,
+      required: node.required,
+      'x-validator': node['x-validator'],
+      'x-reactions': node['x-reactions'],
+      'x-visible': node['x-visible'],
+      'x-hidden': node['x-hidden'],
+      'x-disabled': node['x-disabled'],
+      'x-read-only': node['x-read-only'],
+      'x-editable': node['x-editable'],
+      'x-pattern': node['x-pattern'],
+      'x-display': node['x-display'],
+      'x-content': node['x-content'],
+      'x-data': node['x-data'],
+      description: node.description,
+      default: node.default,
+      enum: node.enum,
+    };
+
+    components.push(comp);
+
+    if (node.properties) {
+      Object.entries(node.properties).forEach(([key, child]) => {
+        traverse(child, id, key);
+      });
+    }
+
+    if (node.items) {
+      traverse(node.items, id, 'items');
+    }
+
+    return id;
+  }
+
+  traverse(schema);
+  return components;
+}
+
+export function flatToTree(components: A2UIComponent[]): ISchema {
+  if (!Array.isArray(components) || components.length === 0) {
+    return { type: 'void', 'x-component': 'Page', properties: {} };
+  }
+
+  const map = new Map<string, ISchema>();
+  const componentIds = new Set(components.map(c => c.id));
+  const sortedComponents = [...components].sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
+
+  for (const c of sortedComponents) {
+    map.set(c.id, {
+      type: c.props?.type || 'void',
+      title: c.props?.title || c.title,
+      name: c.props?.name || c.name,
+      'x-component': c.type,
+      'x-component-props': c.props || {},
+      'x-decorator': c.decorator,
+      'x-decorator-props': c.decoratorProps,
+      'x-uid': c.id,
+      'x-index': c.sort,
+      required: c.required,
+      'x-validator': c['x-validator'],
+      'x-reactions': c['x-reactions'],
+      'x-visible': c['x-visible'],
+      'x-hidden': c['x-hidden'],
+      'x-disabled': c['x-disabled'],
+      'x-read-only': c['x-read-only'],
+      'x-editable': c['x-editable'],
+      'x-pattern': c['x-pattern'],
+      'x-display': c['x-display'],
+      'x-content': c['x-content'],
+      'x-data': c['x-data'],
+      description: c.description,
+      default: c.default,
+      enum: c.enum,
+      properties: {},
+    });
+  }
+
+  let root: ISchema | null = null;
+
+  for (const c of sortedComponents) {
+    const node = map.get(c.id)!;
+    if (c.parentId && componentIds.has(c.parentId)) {
+      const parentNode = map.get(c.parentId)!;
+      if (!parentNode.properties) {
+        parentNode.properties = {};
+      }
+      const propertyKey = c.props?.name || c.id;
+      parentNode.properties[propertyKey] = node;
+    } else {
+      if (!root) {
+        root = node;
+      } else {
+        if (root.properties) {
+          const propertyKey = c.props?.name || c.id;
+          root.properties[propertyKey] = node;
+        }
+      }
+    }
+  }
+
+  return root || { type: 'void', 'x-component': 'Page', properties: {} };
+}
+
 export const SchemaRenderer: React.FC<SchemaRendererProps> = ({
   schema,
   components,
@@ -43,6 +185,16 @@ export const SchemaRenderer: React.FC<SchemaRendererProps> = ({
 }) => {
   const parentRegistry = useComponentRegistry();
   const [hoveredUid, setHoveredUid] = useState<string | null>(null);
+
+  const normalizedSchema = useMemo(() => {
+    if (Array.isArray(schema)) {
+      return flatToTree(schema);
+    }
+    if (schema && typeof schema === 'object' && Array.isArray((schema as any).components)) {
+      return flatToTree((schema as any).components);
+    }
+    return schema;
+  }, [schema]);
 
   // If extra components provided, build a merged registry
   const registry = useMemo(() => {
@@ -80,7 +232,7 @@ export const SchemaRenderer: React.FC<SchemaRendererProps> = ({
   return (
     <ComponentRegistryContext.Provider value={registry}>
       <DesignableContext.Provider value={designableContextValue}>
-        <SchemaNode schema={schema} />
+        <SchemaNode schema={normalizedSchema} />
       </DesignableContext.Provider>
     </ComponentRegistryContext.Provider>
   );

@@ -20,11 +20,13 @@
   "dependencies": {
     "@formai/shared": "workspace:*",
     "@formai/plugin": "workspace:*",
-    "@formai/ai": "workspace:*"
+    "@formai/ai": "workspace:*",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "koa": "^2.15.0",
     "@types/koa": "^2.15.0",
+    "@types/ws": "^8.5.10",
     "tsup": "^8.0.0",
     "typescript": "^5.5.0",
     "vitest": "^2.0.0"

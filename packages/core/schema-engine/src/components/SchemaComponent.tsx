@@ -54,8 +54,8 @@ export const SchemaComponent: React.FC<SchemaComponentProps> = ({ schema, name, 
       
       const schemaFieldProps: any = {};
       if (decoratorName === 'FormItem') {
-        schemaFieldProps.label = schema.title;
-        schemaFieldProps.name = name;
+        schemaFieldProps.label = schema.title || schema['x-decorator-props']?.title || schema['x-component-props']?.title || schema['x-decorator-props']?.label || schema['x-component-props']?.label;
+        schemaFieldProps.name = schema['x-component-props']?.name || schema.name || name;
         if (schema['x-validator']) {
           const validators = Array.isArray(schema['x-validator']) ? schema['x-validator'] : [schema['x-validator']];
           const hasRequired = validators.some((v: any) => v && (v.required === true || v === 'required'));

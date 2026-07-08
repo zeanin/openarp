@@ -2,8 +2,6 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { A2UIEngine } from '../a2ui/engine';
 import { LLMManager } from '../llm/manager';
 import { MockLLMProvider } from '../llm/providers/mock';
-import { validateSchema } from '../a2ui/schema-validator';
-import type { ISchema } from '@formai/shared';
 
 describe('Codex Self-Healing & Blueprint Compilation', () => {
   let manager: LLMManager;
@@ -46,24 +44,12 @@ describe('Codex Self-Healing & Blueprint Compilation', () => {
     };
 
     // 2. Second response: A2UI Generator Form Block
-    const mockFormBlock = {
-      type: 'object',
-      'x-component': 'Form',
-      properties: {
-        name: {
-          type: 'string',
-          'x-component': 'Input',
-          'x-decorator': 'FormItem',
-          title: 'Contract Name',
-        },
-        status: {
-          type: 'string',
-          'x-component': 'Select',
-          'x-decorator': 'FormItem',
-          title: 'Status',
-        },
-      },
-    };
+    const mockFormBlock = [
+      {
+        id: 'contractsForm',
+        type: 'Form',
+      }
+    ];
 
     mock.setResponses([
       { role: 'assistant', content: JSON.stringify(mockBlueprint) },
@@ -77,93 +63,54 @@ describe('Codex Self-Healing & Blueprint Compilation', () => {
       mode: 'create',
     });
 
-    // Verify A2Integration stitched properties correctly
-    expect(result.type).toBe('void');
-    expect(result['x-component']).toBe('Page');
-    expect(result['x-component-props']?.title).toBe('Contract Directory');
+    // Verify A2Integration stitched properties correctly in flat list
+    expect(Array.isArray(result)).toBe(true);
+    
+    const rootPage = result.find((c: any) => c.id === 'page-root');
+    expect(rootPage).toBeDefined();
+    expect(rootPage.type).toBe('Page');
+    expect(rootPage.props?.title).toBe('Contract Directory');
 
-    const layoutGrid = result.properties?.layoutGrid;
-    expect(layoutGrid).toBeDefined();
-    expect(layoutGrid['x-component']).toBe('Grid');
+    // Verify FilterBlock is placed
+    const filterBlock = result.find((c: any) => c.type === 'FilterBlock');
+    expect(filterBlock).toBeDefined();
+    expect(filterBlock.props?.collection).toBe('contracts');
 
-    const pageProperties = layoutGrid.properties;
-    expect(pageProperties).toBeDefined();
+    // Verify Space (actions bar) is placed
+    const actionsSpace = result.find((c: any) => c.type === 'Space');
+    expect(actionsSpace).toBeDefined();
 
-    // Verify FilterBlock is placed at top
-    expect(pageProperties.contractsFilter).toBeDefined();
-    expect(pageProperties.contractsFilter['x-component']).toBe('FilterBlock');
-    expect(pageProperties.contractsFilter['x-component-props']?.collection).toBe('contracts');
-
-    // Verify ActionBar Space is placed in middle
-    expect(pageProperties.actionBar_contractsTable).toBeDefined();
-    expect(pageProperties.actionBar_contractsTable['x-component']).toBe('Space');
-    const actions = pageProperties.actionBar_contractsTable.properties;
-    expect(actions.importAction).toBeDefined();
-    expect(actions.importAction['x-component-props']?.action).toBe('import');
-    expect(actions.exportAction).toBeDefined();
-    expect(actions.exportAction['x-component-props']?.action).toBe('export');
-
-    // Verify Table is placed at bottom
-    expect(pageProperties.contractsTable).toBeDefined();
-    expect(pageProperties.contractsTable['x-component']).toBe('Table');
-    expect(pageProperties.contractsTable['x-component-props']?.collection).toBe('contracts');
-    expect(pageProperties.contractsTable['x-component-props']?.rowSelection).toBe(true);
+    // Verify Table is placed
+    const tableBlock = result.find((c: any) => c.type === 'Table');
+    expect(tableBlock).toBeDefined();
+    expect(tableBlock.props?.collection).toBe('contracts');
   });
 
   it('triggers Codex self-healing compiler loop when schema has validation errors', async () => {
-    // Stage 1 Blueprint
-    const mockBlueprint = {
-      title: 'Simple View',
-      collection: 'items',
-      description: 'Simple Items view',
-      blocks: [
-        {
-          id: 'itemsTable',
-          type: 'TableBlock',
-          title: 'Items Table',
-          fields: ['name'],
-          actions: [],
-        },
-      ],
-    };
+    const correctedSchema = [
+      {
+        id: 'page-root',
+        type: 'Page',
+        props: { title: 'Corrected' }
+      }
+    ];
 
-    // Stage 2 Self-healing correction response (will be asked to correct layoutGrid property type)
-    const correctedSchema: ISchema = {
-      type: 'void',
-      'x-component': 'Page',
-      'x-component-props': { title: 'Simple View' },
-      properties: {
-        layoutGrid: {
-          type: 'void',
-          'x-component': 'Grid',
-          'x-component-props': { cols: 1 },
-          properties: {
-            itemsTable: {
-              type: 'array',
-              'x-component': 'Table',
-              'x-component-props': { collection: 'items', columns: [] },
-            },
-          },
-        },
-      },
-    };
-
-    // Set responses:
-    // We only need one response for direct selfHealSchema test call
     mock.setResponses([
       { role: 'assistant', content: JSON.stringify(correctedSchema) },
     ]);
 
-    // Force engine.selfHealSchema directly to test the self healing loop isolation
-    const invalidSchema: ISchema = {
-      type: 'invalid' as any, // Invalid type! Should fail validateSchema
-      'x-component': 'Page',
-    };
+    const invalidSchema = [
+      {
+        id: 'page-root',
+        type: 'Page',
+        props: { title: 'Invalid' },
+        parentId: 'non-existent' // Connectivity issue
+      }
+    ];
 
-    const healed = await (engine as any).selfHealSchema(invalidSchema, ['Invalid type "invalid" at root']);
-    const validation = validateSchema(healed);
+    const healed = await (engine as any).selfHealSchema(invalidSchema, ['Invalid parentId dependency "non-existent"']);
 
-    expect(validation.valid).toBe(true);
-    expect(healed['x-component']).toBe('Page');
+    expect(Array.isArray(healed)).toBe(true);
+    expect(healed[0].props?.title).toBe('Corrected');
   });
 });

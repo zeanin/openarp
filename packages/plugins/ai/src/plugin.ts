@@ -15,6 +15,7 @@ import {
 } from '@formai/ai';
 import type { Context, Next } from 'koa';
 import type { RuntimeChatRequest, SkillContext } from '@formai/shared';
+import { AGUIGateway } from './websocket';
 
 // ─── Permission helpers ───────────────────────────────────────────────────
 
@@ -68,6 +69,7 @@ export default class AIPlugin extends Plugin {
   agentRuntime!: AgentRuntime;
   skillRegistry!: ResourceSkillRegistry;
   skillLogger!: SkillLogger;
+  gateway?: AGUIGateway;
 
   async load(): Promise<void> {
     // Define aiProviders collection to persist LLM configs
@@ -174,7 +176,7 @@ export default class AIPlugin extends Plugin {
     // ── Builder Engines setup ────────────────────────────────────────────────
 
     this.a2data = new A2DataEngine(this.llm);
-    this.a2ui = new A2UIEngine(this.llm);
+    this.a2ui = new A2UIEngine(this.llm, this.db);
     this.a2flow = new A2FlowEngine(this.llm);
     this.a2menu = new A2MenuEngine(this.llm);
 
@@ -182,6 +184,20 @@ export default class AIPlugin extends Plugin {
     this.app.a2ui = this.a2ui;
     this.app.a2flow = this.a2flow;
     this.app.a2menu = this.a2menu;
+
+    this.app.on('start', () => {
+      if (this.app.server) {
+        this.gateway = new AGUIGateway(this.app.server, {
+          onUserAction: (sessionId, payload) => {
+            this.handleUserAction(sessionId, payload).catch((err) => {
+              console.error('[AG-UI Gateway] Error handling user action:', err.message);
+            });
+          }
+        });
+        this.app.a2uiGateway = this.gateway;
+        this.a2ui.gateway = this.gateway;
+      }
+    });
 
     // Helper to resolve codex and provider configuration for UI generation routes
     const getCodexRunOptions = () => {
@@ -2085,6 +2101,26 @@ You MUST return two parts in your response:
       '- When returning data results, present them in a readable format.',
       '- Never expose raw database error messages to the user; translate them into friendly language.',
     ].filter(Boolean).join('\n');
+  }
+
+  private async handleUserAction(sessionId: string, payload: any) {
+    if (!this.gateway) return;
+    const schemaUid = this.gateway.getSessionSchema(sessionId);
+    if (!schemaUid) {
+      console.warn(`[AG-UI Gateway] No schemaUid synced for session: ${sessionId}`);
+      return;
+    }
+
+    console.log(`[AG-UI Gateway] Action '${payload.actionType}' by session '${sessionId}' on schema '${schemaUid}'`);
+    
+    // Broadcast the action to all OTHER clients synced to this schemaUid
+    this.gateway.broadcastToSchema(schemaUid, sessionId, {
+      operation: 'peerAction',
+      payload: {
+        sessionId,
+        ...payload
+      }
+    });
   }
 }
 

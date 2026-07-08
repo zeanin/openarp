@@ -1,12 +1,16 @@
 import React from 'react';
 import { Form, Row, Col, Input, Select, DatePicker, Button, Card } from 'antd';
 import { SearchOutlined, UndoOutlined } from '@ant-design/icons';
+import AssociationField from '../data/AssociationField';
 
 export interface FilterField {
   name: string;
   title: string;
-  type?: 'string' | 'integer' | 'float' | 'boolean' | 'date' | 'datetime' | 'enum' | string;
+  type?: 'string' | 'integer' | 'float' | 'boolean' | 'date' | 'datetime' | 'enum' | 'association' | string;
   values?: string[];
+  collection?: string;
+  labelField?: string;
+  valueField?: string;
 }
 
 export interface FilterBlockProps {
@@ -38,6 +42,9 @@ export const FilterBlock: React.FC<FilterBlockProps> = ({
       title: f.title || f.name.charAt(0).toUpperCase() + f.name.slice(1).replace(/_/g, ' '),
       type: f.type || 'string',
       values: f.values,
+      collection: f.collection,
+      labelField: f.labelField,
+      valueField: f.valueField,
     };
   });
 
@@ -103,6 +110,15 @@ export const FilterBlock: React.FC<FilterBlockProps> = ({
 
   const renderFieldInput = (field: FilterField) => {
     switch (field.type) {
+      case 'association':
+        return (
+          <AssociationField
+            placeholder={`Select ${field.title}`}
+            collection={field.collection}
+            labelField={field.labelField}
+            valueField={field.valueField}
+          />
+        );
       case 'enum':
         const selectOptions = field.values?.map((v) => ({ label: v.toUpperCase(), value: v })) || [];
         return (

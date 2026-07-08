@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { Spin, Empty, Alert, theme, Typography } from 'antd';
-import { SchemaRenderer } from '@formai/client';
+import { SchemaRenderer, treeToFlat, A2UIComponent } from '@formai/client';
 import { useDesignMode, PageDesignPanel } from '@formai/client';
 import { PageAIContextProvider } from '../providers/PageAIContextProvider';
 import { PageAIAssistant, PageAIAssistantTrigger } from '../components/PageAIAssistant';
+import { AGUIProvider, useAGUI } from '../providers/AGUIProvider';
 
 const { Title } = Typography;
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
@@ -33,16 +34,15 @@ interface SchemaPageProps {
   userPermissions?: string[];
 }
 
-/**
- * SchemaPage — runtime route component that:
- * 1. Resolves which schema to show (from URL params → appMenu → schemaUid)
- * 2. Loads the UI schema from the backend
- * 3. Wraps content in PageAIContextProvider
- * 4. Renders the schema via SchemaRenderer (with design-mode support)
- * 5. Shows PageDesignPanel when in design mode
- * 6. Persists schema changes via PATCH /api/uiSchemas/:uid
- */
-export function SchemaPage({ userPermissions = [] }: SchemaPageProps) {
+export function SchemaPage(props: SchemaPageProps) {
+  return (
+    <AGUIProvider>
+      <SchemaPageContent {...props} />
+    </AGUIProvider>
+  );
+}
+
+function SchemaPageContent({ userPermissions = [] }: SchemaPageProps) {
   const { token } = theme.useToken();
   const { appId, menuPath } = useParams<{ appId: string; menuPath: string }>();
   const { mode } = useDesignMode();
@@ -52,13 +52,53 @@ export function SchemaPage({ userPermissions = [] }: SchemaPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [menuItem, setMenuItem] = useState<any>(null);
   const [schemaUid, setSchemaUid] = useState<string>('');
-  const [schema, setSchema] = useState<any>(null);
+  const [schema, setSchema] = useState<A2UIComponent[]>([]);
   const [aiOpen, setAiOpen] = useState(false);
+  const [aiStatus, setAiStatus] = useState<{ status: string; message: string } | null>(null);
 
   // Design panel state
   const [designPanelOpen, setDesignPanelOpen] = useState(false);
   const [selectedBlockUid, setSelectedBlockUid] = useState<string | undefined>();
   const [selectedBlockSchema, setSelectedBlockSchema] = useState<any>(undefined);
+
+  const { registerUpdateHandler, sendUserAction, sessionId, syncSession, connected } = useAGUI();
+
+  // Auto-sync session when schemaUid resolves or WS connects
+  useEffect(() => {
+    if (connected && schemaUid) {
+      syncSession(schemaUid);
+    }
+  }, [connected, schemaUid, syncSession]);
+
+  // Listen to AG-UI server UI stream pushes
+  useEffect(() => {
+    const unsubscribe = registerUpdateHandler((payload: any) => {
+      if (payload.operation === 'updateComponents') {
+        setSchema((prev) => {
+          const next = [...prev];
+          payload.components.forEach((newComp: any) => {
+            const index = next.findIndex((c) => c.id === newComp.id);
+            if (index > -1) {
+              next[index] = { ...next[index], ...newComp };
+            } else {
+              next.push(newComp);
+            }
+          });
+          return next;
+        });
+      } else if (payload.operation === 'setSchema') {
+        console.log('[AG-UI Client] Received setSchema. Replacing local schema.');
+        setSchema(payload.schema);
+      } else if (payload.operation === 'generationStatus') {
+        console.log('[AG-UI Client] Generation Status:', payload);
+        setAiStatus({ status: payload.status, message: payload.message });
+        if (payload.status === 'completed' || payload.status === 'failed') {
+          setTimeout(() => setAiStatus(null), 4000);
+        }
+      }
+    });
+    return unsubscribe;
+  }, [registerUpdateHandler]);
 
   // Auto-open design panel when entering design mode
   useEffect(() => {
@@ -90,163 +130,118 @@ export function SchemaPage({ userPermissions = [] }: SchemaPageProps) {
     [],
   );
 
-  // Deep clone helper
-  const deepClone = (obj: any) => JSON.parse(JSON.stringify(obj));
-
-  /**
-   * Find a node by uid and apply a patch.
-   */
-  const patchNodeInSchema = useCallback(
-    (root: any, uid: string, patch: any): boolean => {
-      if (!root || typeof root !== 'object') return false;
-      if (root['x-uid'] === uid) {
-        Object.assign(root, patch);
-        if (patch['x-component-props'] && root['x-component-props']) {
-          root['x-component-props'] = { ...root['x-component-props'], ...patch['x-component-props'] };
-        }
-        return true;
-      }
-      for (const key of Object.keys(root.properties || {})) {
-        if (patchNodeInSchema(root.properties[key], uid, patch)) return true;
-      }
-      if (root.items && patchNodeInSchema(root.items, uid, patch)) return true;
-      return false;
-    },
-    [],
-  );
-
-  /**
-   * Find a node by uid and remove it from its parent's properties.
-   */
-  const removeNodeFromSchema = useCallback(
-    (root: any, uid: string): boolean => {
-      if (!root?.properties) return false;
-      for (const key of Object.keys(root.properties)) {
-        if (root.properties[key]['x-uid'] === uid) {
-          delete root.properties[key];
-          return true;
-        }
-        if (removeNodeFromSchema(root.properties[key], uid)) return true;
-      }
-      return false;
-    },
-    [],
-  );
-
-  /**
-   * Find a node's parent container and swap key ordering in properties.
-   */
-  const moveNodeInSchema = useCallback(
-    (root: any, uid: string, direction: 'up' | 'down'): boolean => {
-      if (!root || typeof root !== 'object') return false;
-
-      const properties = root.properties;
-      if (properties) {
-        const keys = Object.keys(properties);
-        const index = keys.findIndex((k) => properties[k]['x-uid'] === uid);
-
-        if (index > -1) {
-          if (direction === 'up' && index > 0) {
-            const newProperties: Record<string, any> = {};
-            keys.forEach((key, kIdx) => {
-              if (kIdx === index - 1) {
-                newProperties[keys[index]] = properties[keys[index]];
-              } else if (kIdx === index) {
-                newProperties[keys[index - 1]] = properties[keys[index - 1]];
-              } else {
-                newProperties[key] = properties[key];
-              }
-            });
-            root.properties = newProperties;
-            return true;
-          } else if (direction === 'down' && index < keys.length - 1) {
-            const newProperties: Record<string, any> = {};
-            keys.forEach((key, kIdx) => {
-              if (kIdx === index) {
-                newProperties[keys[index + 1]] = properties[keys[index + 1]];
-              } else if (kIdx === index + 1) {
-                newProperties[keys[index]] = properties[keys[index]];
-              } else {
-                newProperties[key] = properties[key];
-              }
-            });
-            root.properties = newProperties;
-            return true;
-          }
-          return false;
-        }
-      }
-
-      for (const key of Object.keys(root.properties || {})) {
-        if (moveNodeInSchema(root.properties[key], uid, direction)) return true;
-      }
-      if (root.items && moveNodeInSchema(root.items, uid, direction)) return true;
-      return false;
-    },
-    [],
-  );
-
   // ─── Design callbacks ────────────────────────────────────────────────────
 
   const handlePatch = useCallback(
     (uid: string, patch: any) => {
-      setSchema((prev: any) => {
-        if (!prev) return prev;
-        if (prev['x-uid'] === uid) {
-          persistSchema(schemaUid, patch);
-          return patch;
-        }
-        const next = deepClone(prev);
-        patchNodeInSchema(next, uid, patch);
+      setSchema((prev) => {
+        const next = prev.map((item) => {
+          if (item.id === uid) {
+            const mergedProps = {
+              ...item.props,
+              ...(patch.props || patch['x-component-props'] || {})
+            };
+            return {
+              ...item,
+              ...patch,
+              props: mergedProps
+            };
+          }
+          return item;
+        });
         persistSchema(schemaUid, next);
         return next;
       });
+      sendUserAction(uid, 'patch', patch);
     },
-    [schemaUid, patchNodeInSchema, persistSchema],
+    [schemaUid, persistSchema, sendUserAction],
   );
 
   const handleRemove = useCallback(
     (uid: string) => {
-      setSchema((prev: any) => {
-        if (!prev) return prev;
-        const next = deepClone(prev);
-        removeNodeFromSchema(next, uid);
+      setSchema((prev) => {
+        const toDelete = new Set<string>([uid]);
+        let sizeBefore: number;
+        do {
+          sizeBefore = toDelete.size;
+          for (const item of prev) {
+            if (item.parentId && toDelete.has(item.parentId)) {
+              toDelete.add(item.id);
+            }
+          }
+        } while (toDelete.size > sizeBefore);
+
+        const next = prev.filter((item) => !toDelete.has(item.id));
         persistSchema(schemaUid, next);
         return next;
       });
+      sendUserAction(uid, 'remove');
     },
-    [schemaUid, removeNodeFromSchema, persistSchema],
+    [schemaUid, persistSchema, sendUserAction],
   );
 
   const handleMove = useCallback(
     (uid: string, direction: 'up' | 'down') => {
-      setSchema((prev: any) => {
-        if (!prev) return prev;
-        const next = deepClone(prev);
-        const moved = moveNodeInSchema(next, uid, direction);
-        if (moved) {
-          persistSchema(schemaUid, next);
-        }
-        return next;
-      });
-    },
-    [schemaUid, moveNodeInSchema, persistSchema],
-  );
+      setSchema((prev) => {
+        const targetIndex = prev.findIndex((item) => item.id === uid);
+        if (targetIndex === -1) return prev;
+        const target = prev[targetIndex];
+        const siblings = prev
+          .filter((item) => item.parentId === target.parentId)
+          .sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
+        const siblingIndex = siblings.findIndex((item) => item.id === uid);
 
-  const handleInsert = useCallback(
-    (_uid: string, _position: 'before' | 'after' | 'child', newBlock: any) => {
-      setSchema((prev: any) => {
-        if (!prev) return prev;
-        const next = deepClone(prev);
-        // Insert as a top-level page block
-        const blockKey = newBlock['x-uid'] || `block_${Date.now()}`;
-        if (!next.properties) next.properties = {};
-        next.properties[blockKey] = newBlock;
+        siblings.forEach((sib, sIdx) => {
+          if (sib.sort === undefined) {
+            sib.sort = sIdx * 10;
+          }
+        });
+
+        if (direction === 'up' && siblingIndex > 0) {
+          const prevSibling = siblings[siblingIndex - 1];
+          const temp = target.sort ?? 0;
+          target.sort = prevSibling.sort ?? 0;
+          prevSibling.sort = temp;
+        } else if (direction === 'down' && siblingIndex < siblings.length - 1) {
+          const nextSibling = siblings[siblingIndex + 1];
+          const temp = target.sort ?? 0;
+          target.sort = nextSibling.sort ?? 0;
+          nextSibling.sort = temp;
+        }
+
+        const next = [...prev];
         persistSchema(schemaUid, next);
         return next;
       });
+      sendUserAction(uid, `move_${direction}`);
     },
-    [schemaUid, persistSchema],
+    [schemaUid, persistSchema, sendUserAction],
+  );
+
+  const handleInsert = useCallback(
+    (uid: string, position: 'before' | 'after' | 'child', newBlock: any) => {
+      setSchema((prev) => {
+        const newComponents = treeToFlat(newBlock);
+        if (newComponents.length === 0) return prev;
+
+        const newRoot = newComponents[0];
+        const target = prev.find((item) => item.id === uid);
+
+        if (position === 'child') {
+          newRoot.parentId = uid;
+          newRoot.sort = (prev.filter(item => item.parentId === uid).length + 1) * 10;
+        } else if (target) {
+          newRoot.parentId = target.parentId;
+          newRoot.sort = position === 'before' ? (target.sort ?? 0) - 5 : (target.sort ?? 0) + 5;
+        }
+
+        const next = [...prev, ...newComponents];
+        persistSchema(schemaUid, next);
+        return next;
+      });
+      sendUserAction(uid, 'insert', { position, newBlock });
+    },
+    [schemaUid, persistSchema, sendUserAction],
   );
 
   const handleSelectBlock = useCallback((uid: string, blockSchema: any) => {
@@ -258,12 +253,20 @@ export function SchemaPage({ userPermissions = [] }: SchemaPageProps) {
   // AI generation callback
   const handleAIGenerate = useCallback(
     async (prompt: string, context: any) => {
-      return apiFetch<any>('/api/ai/a2ui', {
+      const res = await apiFetch<any>('/api/ai/a2ui', {
         method: 'POST',
-        body: JSON.stringify({ prompt, mode: 'modify', context }),
+        body: JSON.stringify({
+          prompt,
+          mode: 'modify',
+          context: { ...context, sessionId }
+        }),
       });
+      return {
+        data: res?.data,
+        message: res?.message
+      };
     },
-    [],
+    [sessionId],
   );
 
   // ─── Load schema ─────────────────────────────────────────────────────────
@@ -291,12 +294,16 @@ export function SchemaPage({ userPermissions = [] }: SchemaPageProps) {
         if (menu.schemaUid) {
           setSchemaUid(menu.schemaUid);
           const schemaRes = await apiFetch<any>(`/api/uiSchemas/${menu.schemaUid}`);
-          setSchema(schemaRes?.data?.schema ?? null);
+          const rawSchema = schemaRes?.data?.schema ?? null;
+          if (rawSchema) {
+            setSchema(treeToFlat(rawSchema));
+          } else {
+            setSchema([]);
+          }
         } else if (menu.type === 'group') {
           setError('This is a menu group, not a page.');
         } else {
-          // No schema yet — show placeholder
-          setSchema(null);
+          setSchema([]);
         }
       })
       .catch((err: any) => {
@@ -327,8 +334,8 @@ export function SchemaPage({ userPermissions = [] }: SchemaPageProps) {
   }
 
   const pageTitle = menuItem?.title || menuPath || 'Page';
-  const isRootPage = schema?.['x-component'] === 'Page';
-  const collectionName = schema?.['x-collection'] || menuItem?.collectionName || '';
+  const isRootPage = schema && schema.some((c) => c.type === 'Page' && !c.parentId);
+  const collectionName = menuItem?.collectionName || '';
 
   return (
     <PageAIContextProvider
@@ -387,6 +394,34 @@ export function SchemaPage({ userPermissions = [] }: SchemaPageProps) {
           transition: 'margin-right 0.25s ease',
         }}
       >
+        {/* Dynamic AI Generation/Modification Progress Alert */}
+        {aiStatus && (
+          <div style={{ padding: isRootPage ? '16px 24px 0 24px' : '0 0 16px 0' }}>
+            <Alert
+              message={
+                <span style={{ fontWeight: 500 }}>
+                  {aiStatus.status === 'completed' && '✦ '}
+                  {aiStatus.status === 'failed' && '⚠ '}
+                  {aiStatus.message}
+                </span>
+              }
+              type={
+                aiStatus.status === 'completed'
+                  ? 'success'
+                  : aiStatus.status === 'failed'
+                  ? 'error'
+                  : 'info'
+              }
+              showIcon
+              action={
+                (aiStatus.status === 'generating_blueprint' || aiStatus.status === 'generating_components') && (
+                  <Spin size="small" style={{ marginLeft: 8 }} />
+                )
+              }
+            />
+          </div>
+        )}
+
         {/* Page title */}
         {!isRootPage && (
           <div style={{ marginBottom: 20 }}>
@@ -397,7 +432,7 @@ export function SchemaPage({ userPermissions = [] }: SchemaPageProps) {
         )}
 
         {/* Schema-rendered content */}
-        {schema ? (
+        {schema && schema.length > 0 ? (
           <SchemaRenderer
             schema={schema}
             designable={designable}

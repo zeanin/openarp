@@ -14,8 +14,8 @@ export { generateStructured, zodToJsonSchema } from './llm/structured-output';
 export { A2DataEngine } from './a2data/engine';
 
 // A2UI
-export { A2UIEngine } from './a2ui/engine';
-export type { GeneratePageOptions, GenerateBlockOptions } from './a2ui/engine';
+export { A2UIEngine, treeToFlat, flatToTree } from './a2ui/engine';
+export type { GeneratePageOptions, GenerateBlockOptions, A2UIComponent } from './a2ui/engine';
 export { validateSchema, fixSchema } from './a2ui/schema-validator';
 export type { ValidationResult } from './a2ui/schema-validator';
 export { ALL_EXAMPLES, CRUD_TABLE_EXAMPLE, FORM_EXAMPLE, DETAIL_EXAMPLE, DASHBOARD_EXAMPLE } from './a2ui/examples';

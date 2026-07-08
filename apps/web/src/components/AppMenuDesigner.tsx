@@ -168,12 +168,14 @@ export function AppMenuDesigner({ appId, appName }: AppMenuDesignerProps) {
               const schemaUid = `${appId}_${slugify(child.title || '')}_${Math.random().toString(36).slice(2, 6)}`;
               
               // Generate AI page schema or fallback
-              let schema: any = {
-                type: 'object',
-                'x-component': 'Page',
-                'x-component-props': { title: child.title },
-                properties: {},
-              };
+              let schema: any = [
+                {
+                  id: 'page-root',
+                  type: 'Page',
+                  props: { title: child.title || 'Page' },
+                  sort: 1
+                }
+              ];
               
               if (aiGeneratePages) {
                 try {
@@ -227,12 +229,14 @@ export function AppMenuDesigner({ appId, appName }: AppMenuDesignerProps) {
           // It's a top-level page or link
           const schemaUid = `${appId}_${slugify(item.title || '')}_${Math.random().toString(36).slice(2, 6)}`;
           
-          let schema: any = {
-            type: 'object',
-            'x-component': 'Page',
-            'x-component-props': { title: item.title },
-            properties: {},
-          };
+          let schema: any = [
+            {
+              id: 'page-root',
+              type: 'Page',
+              props: { title: item.title || 'Page' },
+              sort: 1
+            }
+          ];
           
           if (item.type === 'page' && aiGeneratePages) {
             try {

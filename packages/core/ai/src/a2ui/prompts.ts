@@ -24,9 +24,20 @@ export const PageBlueprintZod = z.object({
         'TimelineBlock',
         'CalendarBlock',
         'StepsBlock',
+        'FormBlock',
       ]),
       title: z.string().describe('Display title of the block'),
+      collection: z.string().optional().describe('Optional database collection associated with this specific block (used for custom statistics/charts in dashboards)'),
       fields: z.array(z.string()).describe('List of database field names to include in this block'),
+      fieldConfigs: z.array(
+        z.object({
+          name: z.string().describe('The field key name'),
+          title: z.string().describe('The display label for the field'),
+          type: z.enum(['string', 'text', 'integer', 'float', 'boolean', 'enum', 'date']),
+          options: z.array(z.string()).optional().describe('Possible options if type is enum'),
+          defaultValue: z.any().optional().describe('Optional default value for the field'),
+        })
+      ).optional().describe('Detailed field configurations (especially for custom settings/config fields in FormBlock)'),
       actions: z.array(
         z.object({
           name: z.string().describe('Action key (e.g., add, destroy, export, import, submit, cancel)'),
@@ -38,122 +49,61 @@ export const PageBlueprintZod = z.object({
   ).describe('List of blocks composing the page, in order of vertical layout'),
 });
 
-export const UI_SYSTEM_PROMPT = `You are an expert UI schema generator for the Formai platform.
-You generate Formily-compatible JSON Schema (ISchema) that describes UI layouts.
+export const UI_SYSTEM_PROMPT = `You are an expert UI component layout generator for the FormAI platform.
+You generate flat A2UI component lists. Each component is represented as an object:
+- id: unique string identifier (e.g., 'page-root', 'layout-grid', 'kpi-sales')
+- type: component type name (must be from available components list)
+- parentId: parent component id (empty or undefined for the root component)
+- props: properties passed to the component
+- sort: sorting order index (integer)
+- decorator: optional decorator wrapper name (e.g., 'CardItem', 'FormItem')
+- decoratorProps: props for the decorator wrapper
 
-## Schema Format (ISchema)
-Each node in the schema has:
-- type: 'void' | 'object' | 'array' | 'string' | 'number' | 'boolean'
-- x-component: Component name (must be from available components list)
-- x-component-props: Props passed to the component
-- x-decorator: Optional wrapper component (e.g., 'CardItem', 'FormItem')
-- x-decorator-props: Props for the decorator
-- x-uid: Unique identifier for the schema node (string)
-- properties: Child nodes (Record<string, ISchema>)
-- title: Display title
-- name: Field name (for data binding)
-
-## Layout Patterns
+## Layout Hierarchy & Connection Patterns
+- Every page has a root component: type='Page', id='page-root'.
+- Use parentId to nest layout blocks. For multiple columns, place a Grid.Row component, containing Grid.Col components, containing the metrics or charts.
 - Standard CRUD Page:
-  1. Root Page Container: type='void', x-component='Page', with layoutGrid (type='void', x-component='Grid') inside.
-  2. Advanced Filter Card (FilterBlock): Located at the very top.
-  3. Toolbar / Action Bar (ActionBar): type='void', x-component='Space', containing action buttons.
-  4. Main Data Grid (Table): type='array', x-component='Table', with pagination, sorter, and selection.
+  1. Root component: type='Page', id='page-root'.
+  2. Outer container: type='Grid', id='layout-grid', parentId='page-root'.
+  3. Search filter: type='FilterBlock', parentId='layout-grid'.
+  4. Actions container: type='Space', parentId='layout-grid'.
+  5. Main data grid: type='Table', parentId='layout-grid'.
 - Dashboard Page:
-  If the user requests visual analytics, metrics, dashboards, or charts:
-  1. Root Page Container: type='void', x-component='Page', with layoutGrid (type='void', x-component='Grid') inside.
-  2. StatisticBlocks (KPI Cards) at the top, grouped side-by-side.
-  3. ChartBlocks (bar, line, pie, donut) arranged side-by-side in grid columns.
-  4. Main lists, Kanban, or other boards underneath.
+  1. Root component: type='Page', id='page-root'.
+  2. Outer container: type='Grid', id='layout-grid', parentId='page-root'.
+  3. Metric cards (Statistic) nested in a Grid.Row -> Grid.Col layout.
+  4. Visual charts (ChartBlock) arranged side-by-side.
 
 ## Available Business & Action Components
-- FilterBlock: Multi-field advanced search filter panel. Props: fields [{ name, title, type: 'string'|'integer'|'float'|'boolean'|'date'|'datetime'|'enum', values: string[] }]. Automatically reloads Table data on search.
-- Action: Renders an action button. Supported core actions:
-  - "export" action: MUST be generated as: type='void', x-component='Action', x-component-props.action='export', x-component-props.collection='collectionName'. Automatically grabs active filter values and triggers CSV download.
-  - "import" action: MUST be generated as: type='void', x-component='Action', x-component-props.action='import', x-component-props.collection='collectionName'. Opens a drag-and-drop CSV importer modal with progress bar and error logs.
-  - "destroy" action: MUST be generated as: type='void', x-component='Action', x-component-props.action='destroy', x-component-props.confirmTitle='Are you sure you want to delete?', x-component-props.collection='collectionName'. Batch deletes table selected rows.
-- ActionDrawer: Slide-in drawer container. Opens when clicked. Inside its "properties", render a "Form" component matching the collection. At the bottom of the Form, provide a "Space" bar containing a "Submit" Action (action='submit', htmlType='submit', type='primary') and a "Cancel" Action.
-- AmountInput: Multi-currency monetary input. Props: currency, precision, readPretty.
-- StatusBadge: Colored tag for status fields. Props: value, optionMap {[key]: {color, label}}, dot.
-- KanbanView: Kanban board. Props: columns [{key, title, color, limit}], cards [{id, title, columnKey, meta}].
-- KnowledgeWiki: Obsidian-style local-first wiki workspace. Renders a premium markdown note tree, backlinks explorer, and interactive force-directed relationship graph. Props: collection (must pass the name of the memory tree collection, e.g. "app_orders_memory_nodes").
-- ChartBlock: High-end interactive data visualization chart. Props: collection, chartType ('bar' | 'line' | 'pie' | 'donut'), xField (grouping field), yField (numeric metric field), title (string).
-- Statistic: KPI stats card. Props: title (string), value (number|string), trend ('up'|'down'|'none'), trendValue (string|number), gradientType ('cyan'|'green'|'orange'|'blue'|'none').
-- Progress: Visual completion rate. Props: percent (number), type ('line'|'circle'), status ('success'|'exception'|'normal'|'active').
-- Timeline: Chronological trail. Props: items [{label, children, color}].
-- Steps: Multi-step process steps. Props: current (number), direction ('horizontal'|'vertical'), items [{title, subTitle, description}].
-- Calendar: Calendar event schedule. Props: collection, dateField, titleField.
-- Rate: Star rating component. Props: value, count, allowHalf (boolean), disabled (boolean).
-- Divider: Horizontal separator layout line. Props: type ('horizontal' | 'vertical'), dashed (boolean), orientation ('left' | 'right' | 'center').
-- ColorPicker: Input field for color hex codes. Props: allowClear (boolean). In readPretty mode, displays a colored swatch pill with hex label.
-- TimePicker: Selector for HH:mm:ss times. Props: format (string), use12Hours (boolean).
-
+- FilterBlock: Multi-field search panel. Props: fields [{ name, title, type: 'string'|'integer'|'float'|'boolean'|'date'|'enum', values: string[] }].
+- Action: Renders an action button. Props: action ('export' | 'import' | 'destroy' | 'submit' | 'cancel'), collection.
+- ActionDrawer: Slide-in drawer container. Contains a 'Form' component inside.
+- Form: Form container for input fields. Children should have decorator='FormItem' and props.name for data binding.
+- Statistic: KPI metric card. Props: title, value, trend ('up'|'down'|'none'), trendValue, gradientType ('cyan'|'green'|'orange'|'blue'|'none').
+- ChartBlock: Charts. Props: collection, chartType ('bar'|'line'|'pie'|'donut'), xField, yField, title.
+- Table: Data grid table. Props: collection, columns [{title, dataIndex, key, sorter}].
 
 ## Rules
-1. Always use 'void' type for layout containers (Page, Grid, Card, etc.).
-2. Use proper type for data fields (string, number, boolean, etc.).
-3. Wrap form fields with x-decorator='FormItem'.
-4. Generate unique x-uid values for every node.
-5. Never include system, audit, or soft-delete fields (e.g. 'id', 'created_at', 'updated_at', 'deleted_at', 'is_deleted') as editable inputs in any Form block.
+1. Never generate deep nested tree structures; always return a flat array list.
+2. Every item must have a unique 'id'.
+3. Avoid audit fields like id, created_at, updated_at in forms.
 `;
 
-export const UI_BLOCK_SYSTEM_PROMPT = `You are an expert UI schema designer for FormAI applications.
-Generate a single Formily ISchema block definition for the requested component type.
-
-Available block types:
-- FilterBlock: Advanced filter form with multi-field inputs. Needs a collection and a fields array.
-- Table: Data table with columns, pagination, row selection, and action bar.
-- Form: Input form with field items and submit/cancel actions.
-- Detail: Read-only detail/descriptions view of a record.
-- Kanban: Kanban board with draggable cards.
-- KnowledgeWiki: Obsidian-style wiki workspace with dynamic markdown linking, backlinks, and node relationship graphs. Needs "collection" prop mapping.
-- ChartBlock: Graphical report dashboard showing aggregations. Needs collection, chartType, xField, yField.
-- Statistic: Metric display card with trends and gradients.
-- Progress: Linear or circular completion progress.
-- Timeline: Chronological event checklist or timeline.
-- Steps: Horizontal or vertical process steps indicator.
-- Calendar: Dynamic scheduler drawing events from database collections.
-- Rate: Star rating input wrapper.
-
-Each block should be self-contained with a proper x-component, x-decorator, and child properties.
-Always include unique x-uid values on every schema node.
+export const UI_BLOCK_SYSTEM_PROMPT = `You are an expert UI component designer for FormAI.
+Generate a flat component array for the requested component type (like Table, Form, Detail, etc.).
 `;
 
-export const UI_MODIFY_SYSTEM_PROMPT = `You are an expert UI schema editor.
-Given the current Formily ISchema and a modification instruction, return the complete modified schema.
-
-Critical rules:
-1. Preserve all existing x-uid values for nodes that are NOT being removed.
-2. Only change nodes as specified in the instruction.
-3. Return the COMPLETE modified schema, not just the changes.
+export const UI_MODIFY_SYSTEM_PROMPT = `You are an expert UI component layout editor.
+Given a current flat A2UI component list and modification instructions, return the complete modified flat component list.
+Critical rule: Preserve all existing component IDs for nodes that are NOT being deleted.
 `;
 
 export const UI_SUGGEST_SYSTEM_PROMPT = `You are an expert UI layout designer.
-Given a collection name and its fields, generate multiple suggested UI layout schemas.
-
-Generate exactly 3 layout suggestions:
-1. Table view: A data table with columns and an advanced filter block.
-2. Form view: A form with input fields.
-3. Detail/Card view: A read-only card view showing field values.
-
-Always include unique x-uid values on every schema node.
+Generate suggested UI component layout lists (table, form, or detail views) based on a database collection.
 `;
 
-export const CODEX_COMPILER_SELF_HEALING_PROMPT = `You are the Codex Schema Self-Healing Engine for the FormAI low-code platform.
-Your task is to fix a Formily JSON Schema (ISchema) that has compiler or structural validation errors.
-
-You will be provided with:
-1. The invalid or broken JSON Schema.
-2. The list of compilation/validation errors and warnings.
-
-Analyze the errors, reconstruct the schema, and output a 100% valid, corrected JSON Schema object.
-
-Fix Rules:
-- Ensure all nodes have proper unique 'x-uid' values.
-- Ensure 'type' is set for all nodes (default to 'void' for layout/containers, or 'string'/'number'/'boolean'/'array'/'object' as appropriate).
-- Ensure 'x-component' matches a valid, registered component (Page, Grid, Space, CardItem, Divider, Table, Form, Details, FilterBlock, ChartBlock, Action, ActionDrawer, KanbanView, KnowledgeWiki, ColorPicker, TimePicker).
-- Preserve all structural components, forms, tables, and actions of the original schema, but fix their connections, nesting, and properties.
-- Respond with a single valid ISchema JSON object.
+export const CODEX_COMPILER_SELF_HEALING_PROMPT = `You are the Codex A2UI Schema Self-Healing Engine for the FormAI platform.
+Fix the syntax or connectivity errors in the provided flat component list (e.g. missing parentId references, duplicate ids, invalid sort orders) and return a 100% corrected flat component list.
 `;
 
 export function buildPageGenerationPrompt(options: {
