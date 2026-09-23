@@ -104,6 +104,8 @@ export interface SkillParamDef {
  * Used to filter the list of skills available to the current user/App.
  */
 export interface SkillContext {
+  /** Current Tenant ID */
+  tenantId?: string;
   /** Current App ID */
   appId?: number | string | null;
   /** Current User ID */

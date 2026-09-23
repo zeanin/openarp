@@ -32,7 +32,8 @@
       "@formai/plugin-audit-log": ["../../packages/plugins/audit-log/src"],
       "@formai/plugin-api-doc": ["../../packages/plugins/api-doc/src"],
       "@formai/plugin-theme-editor": ["../../packages/plugins/theme-editor/src"],
-      "@formai/plugin-codex": ["../../packages/plugins/codex/src"]
+      "@formai/plugin-codex": ["../../packages/plugins/codex/src"],
+      "@formai/plugin-pi": ["../../packages/plugins/pi/src"]
     }
   },
   "include": ["src/**/*"],

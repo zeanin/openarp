@@ -2,7 +2,7 @@ import type { Context, Next } from 'koa';
 import { PassThrough } from 'stream';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import { Codex, prepareManagedCodexHome } from '@formai/plugin-codex';
+import { PiAgentService } from '@formai/plugin-pi';
 import { exportAppToWorkspace } from './workspace-sync';
 
 
@@ -1052,93 +1052,60 @@ export async function autoGenerateAppModules(ctx: any, app: any, description: st
       reasoningEffort: undefined,
     };
 
-    // Retrieve past session IDs from app settings
-    const sessions = app.settings?.codexSessions || {};
+    // Retrieve past session IDs from app settings (supporting both piSessions and legacy codexSessions)
+    const sessions = app.settings?.piSessions || app.settings?.codexSessions || {};
     const dbSessionId = sessions.db || null;
     const uiSessionId = sessions.ui || null;
     const flowSessionId = sessions.flow || null;
 
-    // Construct task-isolated paths
+    // Construct multi-tenant execution context
+    const tenantId = (ctx as any).state?.tenantId || (app as any).tenant_id || 'default';
+    const userId = (ctx as any).state?.user?.id || 'system';
+    const userRoles = (ctx as any).state?.user?.roles || ['developer'];
+    const skillContext = {
+      tenantId,
+      appId: app.id,
+      userId,
+      roles: userRoles,
+    };
+
     const taskId = ctx.taskId || `run_${Math.random().toString(36).slice(2, 10)}`;
-    const isolatedAppId = `${app.id}/tasks/${taskId}`;
+    await log(`[Lead Release Manager] Initializing Pi Agent sessions with tenant context (Tenant: ${tenantId}, App: ${app.id}, Task: ${taskId})...`);
 
-    const mcpBridgePort = (ctx as any).app.codex?.mcpBridgePort;
-    const mcpScriptPath = (ctx as any).app.codex?.mcpScriptPath;
+    // Get Pi Agent Service from application instance
+    const piService: PiAgentService = (ctx as any).app.pi || new PiAgentService((ctx as any).app);
 
-    await log(`[Lead Release Manager] Preparing isolated environments for agents in task ${taskId}...`);
-    const dbHome = await prepareManagedCodexHome(String(app.id), 'db', {
-      apiKey: llmProviderConfig.apiKey,
-      provider: llmProviderConfig.provider,
-      mcpBridgePort,
-      mcpScriptPath,
-    });
-    const uiHome = await prepareManagedCodexHome(String(app.id), 'ui', {
-      apiKey: llmProviderConfig.apiKey,
-      provider: llmProviderConfig.provider,
-      mcpBridgePort,
-      mcpScriptPath,
-    });
-    const flowHome = await prepareManagedCodexHome(String(app.id), 'flow', {
-      apiKey: llmProviderConfig.apiKey,
-      provider: llmProviderConfig.provider,
-      mcpBridgePort,
-      mcpScriptPath,
-    });
-
-    const baseEnv = { ...process.env };
-    delete baseEnv.CODEX_DAEMON_URL;
-    delete baseEnv.CODEX_SOCKET_PATH;
-
-    // Resolve codexPathOverride from global client
-    const globalCodexPathOverride = (ctx as any).app.codex?.options?.codexPathOverride;
-
-    // Initialize isolated Codex instances (enforcing direct CLI spawning)
-    const dbCodex = new Codex({
-      apiKey: llmProviderConfig.apiKey,
-      baseUrl: llmProviderConfig.baseUrl,
-      llmProvider: llmProviderConfig,
-      daemonUrl: undefined,
-      socketPath: undefined,
-      codexPathOverride: globalCodexPathOverride,
-      env: { ...baseEnv, CODEX_HOME: dbHome },
-    });
-
-    const uiCodex = new Codex({
-      apiKey: llmProviderConfig.apiKey,
-      baseUrl: llmProviderConfig.baseUrl,
-      llmProvider: llmProviderConfig,
-      daemonUrl: undefined,
-      socketPath: undefined,
-      codexPathOverride: globalCodexPathOverride,
-      env: { ...baseEnv, CODEX_HOME: uiHome },
-    });
-
-    const flowCodex = new Codex({
-      apiKey: llmProviderConfig.apiKey,
-      baseUrl: llmProviderConfig.baseUrl,
-      llmProvider: llmProviderConfig,
-      daemonUrl: undefined,
-      socketPath: undefined,
-      codexPathOverride: globalCodexPathOverride,
-      env: { ...baseEnv, CODEX_HOME: flowHome },
-    });
+    // Initialize 3 independent, tenant-safe Pi agent sessions
+    const [dbSessionRes, uiSessionRes, flowSessionRes] = await Promise.all([
+      piService.createSession({
+        sessionId: dbSessionId,
+        workingDirectory: appWorkspaceDir,
+        providerConfig: llmProviderConfig,
+        skillContext,
+        enablePlatformSkills: false,
+        isTransient: false,
+      }),
+      piService.createSession({
+        sessionId: uiSessionId,
+        workingDirectory: appWorkspaceDir,
+        providerConfig: llmProviderConfig,
+        skillContext,
+        enablePlatformSkills: false,
+        isTransient: false,
+      }),
+      piService.createSession({
+        sessionId: flowSessionId,
+        workingDirectory: appWorkspaceDir,
+        providerConfig: llmProviderConfig,
+        skillContext,
+        enablePlatformSkills: false,
+        isTransient: false,
+      }),
+    ]);
 
     const dbSchemaCodex = zodToJsonSchema(DbBlueprintSchema, { target: 'openAi' });
     const uiSchemaCodex = zodToJsonSchema(UiBlueprintSchema, { target: 'openAi' });
     const flowSchemaCodex = zodToJsonSchema(WorkflowBlueprintSchema, { target: 'openAi' });
-
-    // Initialize/resume 3 independent specialized threads
-    const dbThread = dbSessionId
-      ? dbCodex.resumeThread(dbSessionId, { skipGitRepoCheck: true, model: llmProviderConfig.model, llmProvider: llmProviderConfig, workingDirectory: appWorkspaceDir })
-      : dbCodex.startThread({ skipGitRepoCheck: true, model: llmProviderConfig.model, llmProvider: llmProviderConfig, workingDirectory: appWorkspaceDir });
-
-    const uiThread = uiSessionId
-      ? uiCodex.resumeThread(uiSessionId, { skipGitRepoCheck: true, model: llmProviderConfig.model, llmProvider: llmProviderConfig, workingDirectory: appWorkspaceDir })
-      : uiCodex.startThread({ skipGitRepoCheck: true, model: llmProviderConfig.model, llmProvider: llmProviderConfig, workingDirectory: appWorkspaceDir });
-
-    const flowThread = flowSessionId
-      ? flowCodex.resumeThread(flowSessionId, { skipGitRepoCheck: true, model: llmProviderConfig.model, llmProvider: llmProviderConfig, workingDirectory: appWorkspaceDir })
-      : flowCodex.startThread({ skipGitRepoCheck: true, model: llmProviderConfig.model, llmProvider: llmProviderConfig, workingDirectory: appWorkspaceDir });
 
     let dbPrompt = `You are a specialized Database Schema Architect. Your role is to design/extract a high-precision, relational database schema and skills for the application "${app.title}".
 Analyze the blueprint input below and generate the collection structures (fields, relationships, constraints) and custom skill definitions.
@@ -1178,43 +1145,100 @@ ${JSON.stringify(uiSchemaCodex, null, 2)}`;
 ${JSON.stringify(flowSchemaCodex, null, 2)}`;
     }
 
-    let dbTurn, uiTurn, flowTurn;
+    let dbTurn: { finalResponse: string }, uiTurn: { finalResponse: string }, flowTurn: { finalResponse: string };
     if (isStandardOpenAI) {
-      await log('2. Starting parallel compilation by specialized sub-agents...');
-      [dbTurn, uiTurn, flowTurn] = await Promise.all([
-        dbThread.run(dbPrompt, { outputSchema: dbSchemaCodex }),
-        uiThread.run(uiPrompt, { outputSchema: uiSchemaCodex }),
-        flowThread.run(flowPrompt, { outputSchema: flowSchemaCodex }),
+      await log('2. Starting parallel blueprint compilation via Pi Agent Engine...');
+      const [dbResText, uiResText, flowResText] = await Promise.all([
+        piService.runPrompt(dbSessionRes.session, dbPrompt, { outputSchema: dbSchemaCodex, tenantManager: dbSessionRes.tenantManager }),
+        piService.runPrompt(uiSessionRes.session, uiPrompt, { outputSchema: uiSchemaCodex, tenantManager: uiSessionRes.tenantManager }),
+        piService.runPrompt(flowSessionRes.session, flowPrompt, { outputSchema: flowSchemaCodex, tenantManager: flowSessionRes.tenantManager }),
       ]);
+      await log('2. Multi-Agent team successfully generated all blueprints.');
+      dbTurn = { finalResponse: dbResText };
+      uiTurn = { finalResponse: uiResText };
+      flowTurn = { finalResponse: flowResText };
     } else {
-      await log('Lead Release Manager: Non-OpenAI provider detected. Running compilation tasks sequentially to avoid concurrency limits...');
-      await log('2a. Launching 🗃️ DB Architect...');
-      dbTurn = await dbThread.run(dbPrompt, { outputSchema: dbSchemaCodex });
-      await log('2b. Launching 🎨 UI Engineer...');
-      uiTurn = await uiThread.run(uiPrompt, { outputSchema: uiSchemaCodex });
-      await log('2c. Launching ⚡ Workflow Specialist...');
-      flowTurn = await flowThread.run(flowPrompt, { outputSchema: flowSchemaCodex });
+      await log('Lead Release Manager: Non-OpenAI provider detected. Running compilation tasks sequentially via Pi Agent Engine...');
+      
+      await log('2a. Launching 🗃️ DB Architect via Pi...');
+      let dbChars = 0;
+      let dbLastTick = Date.now();
+      const dbResText = await piService.runPrompt(dbSessionRes.session, dbPrompt, {
+        outputSchema: dbSchemaCodex,
+        tenantManager: dbSessionRes.tenantManager,
+        onTokenDelta: (delta) => {
+          dbChars += delta.length;
+          const now = Date.now();
+          if (now - dbLastTick > 3000) {
+            dbLastTick = now;
+            log(`[🗃️ DB Architect] Generating database schema (~${dbChars} chars generated)...`).catch(() => {});
+          }
+        },
+      });
+      await log('2a. 🗃️ DB Architect completed schema design.');
+      dbTurn = { finalResponse: dbResText };
+
+      await log('2b. Launching 🎨 UI Engineer via Pi...');
+      let uiChars = 0;
+      let uiLastTick = Date.now();
+      const uiResText = await piService.runPrompt(uiSessionRes.session, uiPrompt, {
+        outputSchema: uiSchemaCodex,
+        tenantManager: uiSessionRes.tenantManager,
+        onTokenDelta: (delta) => {
+          uiChars += delta.length;
+          const now = Date.now();
+          if (now - uiLastTick > 3000) {
+            uiLastTick = now;
+            log(`[🎨 UI Engineer] Generating UI navigation layout (~${uiChars} chars generated)...`).catch(() => {});
+          }
+        },
+      });
+      await log('2b. 🎨 UI Engineer completed UI design.');
+      uiTurn = { finalResponse: uiResText };
+
+      await log('2c. Launching ⚡ Workflow Specialist via Pi...');
+      let flowChars = 0;
+      let flowLastTick = Date.now();
+      const flowResText = await piService.runPrompt(flowSessionRes.session, flowPrompt, {
+        outputSchema: flowSchemaCodex,
+        tenantManager: flowSessionRes.tenantManager,
+        onTokenDelta: (delta) => {
+          flowChars += delta.length;
+          const now = Date.now();
+          if (now - flowLastTick > 3000) {
+            flowLastTick = now;
+            log(`[⚡ Workflow Specialist] Generating workflow rules (~${flowChars} chars generated)...`).catch(() => {});
+          }
+        },
+      });
+      await log('2c. ⚡ Workflow Specialist completed workflow design.');
+      flowTurn = { finalResponse: flowResText };
     }
 
-    // Save updated session IDs back to database settings
+    // Save updated session IDs back to database settings (persisting both piSessions and codexSessions compatibility)
     try {
       const appsRepo = db.getRepository('apps');
       if (appsRepo) {
         const currentSettings = app.settings || {};
         const newSettings = {
           ...currentSettings,
+          piSessions: {
+            db: dbSessionRes.sessionId,
+            ui: uiSessionRes.sessionId,
+            flow: flowSessionRes.sessionId,
+          },
           codexSessions: {
-            db: dbThread.id,
-            ui: uiThread.id,
-            flow: flowThread.id,
-          }
+            db: dbSessionRes.sessionId,
+            ui: uiSessionRes.sessionId,
+            flow: flowSessionRes.sessionId,
+          },
         };
         await appsRepo.update({
           filter: { id: app.id },
           values: { settings: newSettings }
         });
         app.settings = newSettings;
-        await log(`[Lead Release Manager] Saved Codex thread session IDs back to application settings.`);
+        await log(`[Lead Release Manager] Saved Pi thread session IDs back to application settings.`);
       }
     } catch (saveErr: any) {
       await log(`[⚠️ AI App Auto-Generate] Failed to save thread sessions to database: ${saveErr.message}`, 'warn');

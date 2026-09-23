@@ -31,6 +31,7 @@ export interface GeneratePageOptions {
     sessionId?: string;
   };
   mode: 'create' | 'modify';
+  pi?: any;
   codex?: any;
   llmProviderConfig?: any;
 }
@@ -40,6 +41,7 @@ export interface GenerateBlockOptions {
   collection?: string;
   fields?: string[];
   blockType?: string;
+  pi?: any;
   codex?: any;
   llmProviderConfig?: any;
 }
@@ -360,10 +362,47 @@ export class A2UIEngine {
     schema: z.ZodSchema<T>,
     prompt: string,
     systemPrompt: string,
-    options?: { codex?: any; llmProviderConfig?: any }
+    options?: { pi?: any; codex?: any; llmProviderConfig?: any }
   ): Promise<T> {
+    const pi = options?.pi;
     const codex = options?.codex;
     const llmProviderConfig = options?.llmProviderConfig;
+
+    // 1. Primary: Pi Agent Engine (TypeScript Native)
+    if (pi && llmProviderConfig) {
+      try {
+        const sessionRes = await pi.createSession({
+          workingDirectory: process.cwd(),
+          providerConfig: llmProviderConfig,
+          enablePlatformSkills: false,
+          isTransient: true,
+        });
+
+        const jsonSchema = zodToJsonSchema(schema);
+        const systemContent = [
+          systemPrompt || 'You are a helpful assistant.',
+          '',
+          'You must respond with valid JSON that matches the following JSON Schema:',
+          '```json',
+          JSON.stringify(jsonSchema, null, 2),
+          '```',
+          '',
+          'Respond ONLY with the JSON object. No markdown, no explanation, no extra text.',
+        ].join('\n');
+
+        const fullPrompt = `System instructions:\n${systemContent}\n\nUser request:\n${prompt}`;
+        const output = await pi.runPrompt(sessionRes.session, fullPrompt, { outputSchema: jsonSchema });
+        let clean = output.trim();
+        if (clean.startsWith('```')) {
+          clean = clean.replace(/^```[a-z]*\n?/, '').replace(/\n?```$/, '').trim();
+        }
+        return JSON.parse(clean) as T;
+      } catch (err: any) {
+        console.warn(`[A2UIEngine] Pi agent generation failed: ${err.message}. Falling back to Codex/LLM.`);
+      }
+    }
+
+    // 2. Secondary fallback: Legacy Codex Adapter (if present)
     if (codex && llmProviderConfig) {
       try {
         const thread = codex.startThread({
@@ -397,13 +436,14 @@ export class A2UIEngine {
       }
     }
 
+    // 3. Fallback: Direct LLM generation
     return this.llm.generate(schema, prompt, {
       systemPrompt,
       temperature: 0.2,
     });
   }
 
-  private async selfHealSchema(originalSchema: any[], errors: string[], options?: { codex?: any; llmProviderConfig?: any }): Promise<any[]> {
+  private async selfHealSchema(originalSchema: any[], errors: string[], options?: { pi?: any; codex?: any; llmProviderConfig?: any }): Promise<any[]> {
     const rawJson = JSON.stringify(originalSchema, null, 2);
     const healingPrompt = buildSelfHealingPrompt(rawJson, errors);
     return this.executePrompt(A2UIComponentsZod, healingPrompt, CODEX_COMPILER_SELF_HEALING_PROMPT, options);
@@ -997,7 +1037,7 @@ Available database collections to bind: ${options.context?.collections?.join(', 
     return this.executePrompt(A2UIComponentsZod, userPrompt, UI_BLOCK_SYSTEM_PROMPT, options);
   }
 
-  async modifySchema(currentSchema: any, instruction: string, options?: { codex?: any; llmProviderConfig?: any }): Promise<any> {
+  async modifySchema(currentSchema: any, instruction: string, options?: { pi?: any; codex?: any; llmProviderConfig?: any }): Promise<any> {
     const flatSchema = treeToFlat(currentSchema);
     const currentSchemaJson = JSON.stringify(flatSchema, null, 2);
     const userPrompt = buildModifySchemaPrompt({
@@ -1011,7 +1051,7 @@ Available database collections to bind: ${options.context?.collections?.join(', 
   async suggestUI(
     collectionName: string,
     fields: Array<{ name: string; type: string }>,
-    options?: { codex?: any; llmProviderConfig?: any }
+    options?: { pi?: any; codex?: any; llmProviderConfig?: any }
   ): Promise<any[][]> {
     const userPrompt = buildSuggestUIPrompt({ collectionName, fields });
     const result = await this.executePrompt(SuggestUIZod, userPrompt, UI_SUGGEST_SYSTEM_PROMPT, options);

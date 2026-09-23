@@ -22,7 +22,7 @@ import AuditLogPlugin from '@formai/plugin-audit-log';
 import ApiDocPlugin from '@formai/plugin-api-doc';
 import ThemeEditorPlugin from '@formai/plugin-theme-editor';
 import AppsPlugin from '@formai/plugin-apps';
-import CodexPlugin from '@formai/plugin-codex';
+import PiPlugin from '@formai/plugin-pi';
 
 export async function createApp(): Promise<Application> {
   const config = getConfig();
@@ -58,8 +58,8 @@ export async function createApp(): Promise<Application> {
     { cls: AuditLogPlugin, name: 'audit-log', dependencies: ['collection-manager', 'users'] },
     { cls: ApiDocPlugin, name: 'api-doc' },
     { cls: ThemeEditorPlugin, name: 'theme-editor', dependencies: ['system-settings'] },
-    { cls: CodexPlugin, name: 'codex' },
-    { cls: AppsPlugin, name: 'apps', dependencies: ['collection-manager', 'users', 'acl', 'codex'] },
+    { cls: PiPlugin, name: 'pi' },
+    { cls: AppsPlugin, name: 'apps', dependencies: ['collection-manager', 'users', 'acl', 'pi'] },
   ];
 
   for (const { cls, name, dependencies } of plugins) {

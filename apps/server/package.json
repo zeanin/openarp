@@ -42,7 +42,8 @@
     "@formai/plugin-audit-log": "workspace:*",
     "@formai/plugin-api-doc": "workspace:*",
     "@formai/plugin-theme-editor": "workspace:*",
-    "@formai/plugin-apps": "workspace:*"
+    "@formai/plugin-apps": "workspace:*",
+    "@formai/plugin-pi": "workspace:*"
   },
   "devDependencies": {
     "@types/koa": "^2.15.0",
