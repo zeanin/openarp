@@ -1,8 +1,8 @@
 {
-  "name": "formai",
+  "name": "openarp",
   "version": "0.1.0",
   "private": true,
-  "description": "AI-Native No-Code Application Platform",
+  "description": "Open Source Agentic Resource Planning (ARP) Platform",
   "scripts": {
     "dev": "turbo run dev --concurrency=64",
     "dev:server": "turbo run dev --filter=@formai/app-server",

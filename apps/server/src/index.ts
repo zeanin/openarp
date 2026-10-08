@@ -17,7 +17,7 @@ async function main() {
   } catch (err: any) {
     // Ignore if already installed (tables already exist)
     if (!err.message?.includes('already exists')) {
-      console.warn('[Formai] Install warning:', err.message);
+      console.warn('[OpenARP] Install warning:', err.message);
     }
   }
 
@@ -25,19 +25,19 @@ async function main() {
   await app.start();
 
   const port = parseInt(process.env.PORT || '3000');
-  console.log(`[Formai] Server running on port ${port}`);
-  console.log(`[Formai] Health check: http://localhost:${port}/api/health`);
-  console.log(`[Formai] Started in ${Date.now() - startTime}ms`);
+  console.log(`[OpenARP] Server running on port ${port}`);
+  console.log(`[OpenARP] Health check: http://localhost:${port}/api/health`);
+  console.log(`[OpenARP] Started in ${Date.now() - startTime}ms`);
 
   // Graceful shutdown
   const shutdown = async (signal: string) => {
-    console.log(`\n[Formai] Received ${signal}, shutting down gracefully...`);
+    console.log(`\n[OpenARP] Received ${signal}, shutting down gracefully...`);
     try {
       await app.stop();
-      console.log('[Formai] Server stopped.');
+      console.log('[OpenARP] Server stopped.');
       process.exit(0);
     } catch (err) {
-      console.error('[Formai] Error during shutdown:', err);
+      console.error('[OpenARP] Error during shutdown:', err);
       process.exit(1);
     }
   };
@@ -48,6 +48,6 @@ async function main() {
 
 // Trigger reload comment to reload rebuilt plugins (v2).
 main().catch((err) => {
-  console.error('[Formai] Failed to start server:', err);
+  console.error('[OpenARP] Failed to start server:', err);
   process.exit(1);
 });
