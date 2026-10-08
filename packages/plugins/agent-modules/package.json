@@ -1,7 +1,7 @@
 {
-  "name": "@formai/plugin-apps",
+  "name": "@formai/plugin-agent-modules",
   "version": "0.1.0",
-  "description": "App management plugin for Formai — enables multi-app platform with role-based menus",
+  "description": "High-order domain capability modules internalized from agent-native (Clips, Analytics, Forms, Brain, Copilot)",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -13,21 +13,17 @@
     }
   },
   "scripts": {
-    "build": "tsup src/index.ts --format esm,cjs --dts --tsconfig tsconfig.build.json",
+    "build": "tsup src/index.ts --format esm,cjs --dts --tsconfig tsconfig.json",
     "dev": "tsup src/index.ts --format esm,cjs --watch",
     "test": "vitest run --passWithNoTests",
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@formai/acl": "workspace:*",
     "@formai/ai": "workspace:*",
     "@formai/database": "workspace:*",
     "@formai/plugin": "workspace:*",
-    "@formai/plugin-codex": "workspace:*",
-    "@formai/plugin-pi": "workspace:*",
     "@formai/shared": "workspace:*",
-    "zod": "^3.23.0",
-    "zod-to-json-schema": "^3.24.1"
+    "zod": "^3.23.0"
   },
   "devDependencies": {
     "@types/koa": "^2.15.0",

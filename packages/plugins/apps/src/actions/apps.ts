@@ -4,6 +4,14 @@ import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { PiAgentService } from '@formai/plugin-pi';
 import { exportAppToWorkspace } from './workspace-sync';
+import {
+  matchDomainTemplate,
+  generatePageSchemaForArchetype,
+  seedAppMockData,
+  validateBlueprintIntegrity,
+  autoRepairBlueprint,
+  type DomainTemplate,
+} from '@formai/ai';
 
 
 
@@ -1107,6 +1115,11 @@ export async function autoGenerateAppModules(ctx: any, app: any, description: st
     const uiSchemaCodex = zodToJsonSchema(UiBlueprintSchema, { target: 'openAi' });
     const flowSchemaCodex = zodToJsonSchema(WorkflowBlueprintSchema, { target: 'openAi' });
 
+    const matchedDomain = matchDomainTemplate(`${app.title} ${description}`);
+    if (matchedDomain) {
+      await log(`[ARP Architecture] Matched Domain Knowledge Template: "${matchedDomain.name}" (${matchedDomain.id}). Augmenting Multi-Agent design prompts with domain baseline schema & workflows...`);
+    }
+
     let dbPrompt = `You are a specialized Database Schema Architect. Your role is to design/extract a high-precision, relational database schema and skills for the application "${app.title}".
 Analyze the blueprint input below and generate the collection structures (fields, relationships, constraints) and custom skill definitions.
 
@@ -1115,6 +1128,17 @@ Directly output the schema in the requested JSON format.
 
 Blueprint Input:
 "${description}"`;
+
+    if (matchedDomain) {
+      dbPrompt += `\n\nDomain Relational Baseline (Enterprise Best Practice for "${matchedDomain.name}"):
+We recommend grounding your schema design around the following relational architecture:
+${JSON.stringify(matchedDomain.collections.map(c => ({
+  name: c.name,
+  title: c.title,
+  fields: c.fields.map(f => ({ name: f.name, type: f.type, title: f.title, target: f.target, foreignKey: f.foreignKey, enumOptions: f.enumOptions }))
+})), null, 2)}
+You may customize, augment, or refine these collections to specifically fulfill the user's requirements.`;
+    }
 
     let uiPrompt = `You are a specialized UX/UI Frontend Engineer. Your role is to design a responsive sidebar menu layout and navigation schemas for the application "${app.title}".
 Analyze the blueprint input below and design the custom page list, grouping cards, and sidebar hierarchy.
@@ -1125,6 +1149,16 @@ Directly output the navigation schemas in the requested JSON format.
 Blueprint Input:
 "${description}"`;
 
+    if (matchedDomain) {
+      uiPrompt += `\n\nRecommended Enterprise Navigation Baseline for "${matchedDomain.name}":
+${JSON.stringify(matchedDomain.pages.map(p => ({
+  title: p.title,
+  type: p.type,
+  collection: p.collection,
+  icon: p.icon
+})), null, 2)}`;
+    }
+
     let flowPrompt = `You are a specialized Workflow Automation Specialist. Your role is to design the event-driven business rules and trigger workflows for the application "${app.title}".
 Analyze the blueprint input below and map out triggers, actions, and automation metadata.
 
@@ -1133,6 +1167,16 @@ Directly output the workflows in the requested JSON format.
 
 Blueprint Input:
 "${description}"`;
+
+    if (matchedDomain) {
+      flowPrompt += `\n\nRecommended Business Workflow Automation Baseline for "${matchedDomain.name}":
+${JSON.stringify(matchedDomain.workflows.map(w => ({
+  title: w.title,
+  description: w.description,
+  trigger: w.trigger,
+  actions: w.actions
+})), null, 2)}`;
+    }
 
     if (!isStandardOpenAI) {
       dbPrompt += `\n\nIMPORTANT: You must return ONLY a raw JSON object matching the following JSON Schema. Do NOT include any conversational text or explanation. Return only the JSON (do NOT wrap it in conversational text, and if you use markdown code blocks, use ONLY a single \`\`\`json block):
@@ -1343,6 +1387,19 @@ ${JSON.stringify(flowSchemaCodex, null, 2)}`;
       menus: uiBlueprintCodex.menus || [],
       workflows: validatedWorkflowsCodex,
     };
+
+    await log('Lead Release Manager: Cross-validating relational integrity across DB, UI, and Workflow blueprints...');
+    const validationRes = validateBlueprintIntegrity(blueprint);
+    if (!validationRes.valid || validationRes.warningsCount > 0) {
+      await log(`[Cross-Validation] Detected ${validationRes.errorsCount} errors and ${validationRes.warningsCount} warnings. Performing automated blueprint reconciliation...`, 'warn');
+      const { repairedBlueprint, repairedCount } = autoRepairBlueprint(blueprint);
+      await log(`[Cross-Validation] Successfully reconciled and healed ${repairedCount} blueprint relational inconsistencies.`);
+      blueprint.collections = repairedBlueprint.collections;
+      blueprint.menus = repairedBlueprint.menus;
+      blueprint.workflows = repairedBlueprint.workflows;
+    } else {
+      await log('[Cross-Validation] Relational integrity verified with 0 errors.');
+    }
 
     await log('Lead Release Manager: Integrity checks passed! Synchronizing database schema passes...');
 
@@ -1657,6 +1714,21 @@ ${JSON.stringify(flowSchemaCodex, null, 2)}`;
       }
     }
 
+    // 2.6. Seed realistic relational mock data for out-of-the-box availability
+    await log('[🗃️ DB Architect] 2.6. Seeding realistic relational mock data for immediate out-of-the-box availability...');
+    try {
+      const seedTargets = createdCollections.map((prefixedColName) => ({
+        name: prefixedColName,
+        title: collectionMap.get(prefixedColName)?.title,
+        fields: collectionMap.get(prefixedColName)?.fields || [],
+      }));
+      const seedResults = await seedAppMockData(db, seedTargets, matchedDomain);
+      const totalSeeded = seedResults.reduce((acc, r) => acc + r.count, 0);
+      await log(`[🗃️ DB Architect] Successfully seeded ${totalSeeded} relational mock records across ${seedResults.length} business collections.`);
+    } catch (seedErr: any) {
+      await log(`[⚠️ Mock Data Warning] Could not complete mock data seeding: ${seedErr.message}`, 'warn');
+    }
+
     // 3. Generate Sidebar/Menus
     await log('[🎨 UI Engineer] 3. Designing app sidebar menus and dynamic UI page schemas...');
     const menuStructure = { menus: blueprint.menus || [] };
@@ -1758,12 +1830,11 @@ ${JSON.stringify(flowSchemaCodex, null, 2)}`;
 
               await log(`[🎨 UI Engineer] Generating UI page schema for page "${childItem.title}" linked to collection "${matchedCol.replace(`app_${app.name}_`, '')}"...`);
 
-              let pageSchema;
-              if (/dashboard|overview|home|看板|数据看板/i.test(childItem.title)) {
-                pageSchema = generateDashboardPageSchema(childItem.title, matchedCol, matchedColFields);
-              } else {
-                pageSchema = generateDefaultPageSchema(childItem.title, matchedCol, matchedColFields);
-              }
+              const pageSchema = generatePageSchemaForArchetype(childItem.title, {
+                collectionName: matchedCol,
+                fields: matchedColFields,
+                appId: app.name,
+              });
 
               // Save UI schema
               await uiSchemasRepo.create({
@@ -1861,12 +1932,11 @@ ${JSON.stringify(flowSchemaCodex, null, 2)}`;
 
             await log(`[🎨 UI Engineer] Generating UI page schema for page "${menuItem.title}" linked to collection "${matchedCol.replace(`app_${app.name}_`, '')}"...`);
 
-            let pageSchema;
-            if (/dashboard|overview|home|看板|数据看板/i.test(menuItem.title)) {
-              pageSchema = generateDashboardPageSchema(menuItem.title, matchedCol, matchedColFields);
-            } else {
-              pageSchema = generateDefaultPageSchema(menuItem.title, matchedCol, matchedColFields);
-            }
+            const pageSchema = generatePageSchemaForArchetype(menuItem.title, {
+              collectionName: matchedCol,
+              fields: matchedColFields,
+              appId: app.name,
+            });
 
             await uiSchemasRepo.create({
               values: {

@@ -25,6 +25,12 @@ export const PageBlueprintZod = z.object({
         'CalendarBlock',
         'StepsBlock',
         'FormBlock',
+        // High-order domain blocks internalized from agent-native
+        'ClipsBlock',
+        'MetricGridBlock',
+        'SmartChartBlock',
+        'MultiStepFormBlock',
+        'BrainSearchBlock',
       ]),
       title: z.string().describe('Display title of the block'),
       collection: z.string().optional().describe('Optional database collection associated with this specific block (used for custom statistics/charts in dashboards)'),
@@ -38,6 +44,7 @@ export const PageBlueprintZod = z.object({
           defaultValue: z.any().optional().describe('Optional default value for the field'),
         })
       ).optional().describe('Detailed field configurations (especially for custom settings/config fields in FormBlock)'),
+      options: z.record(z.any()).optional().describe('Additional configuration options for specialized domain blocks'),
       actions: z.array(
         z.object({
           name: z.string().describe('Action key (e.g., add, destroy, export, import, submit, cancel)'),
@@ -71,8 +78,12 @@ You generate flat A2UI component lists. Each component is represented as an obje
 - Dashboard Page:
   1. Root component: type='Page', id='page-root'.
   2. Outer container: type='Grid', id='layout-grid', parentId='page-root'.
-  3. Metric cards (Statistic) nested in a Grid.Row -> Grid.Col layout.
-  4. Visual charts (ChartBlock) arranged side-by-side.
+  3. Metric cards (Statistic or MetricGridBlock) nested in a Grid.Row -> Grid.Col layout.
+  4. Visual charts (ChartBlock or SmartChartBlock) arranged side-by-side.
+- Video / Inspection / Knowledge Pages:
+  - ClipsBlock for recording sessions, video player, transcript, and AI action item ticket extraction.
+  - BrainSearchBlock for cited enterprise knowledge base searches.
+  - MultiStepFormBlock for public questionnaire or multi-step intake flows.
 
 ## Available Business & Action Components
 - FilterBlock: Multi-field search panel. Props: fields [{ name, title, type: 'string'|'integer'|'float'|'boolean'|'date'|'enum', values: string[] }].
@@ -82,6 +93,11 @@ You generate flat A2UI component lists. Each component is represented as an obje
 - Statistic: KPI metric card. Props: title, value, trend ('up'|'down'|'none'), trendValue, gradientType ('cyan'|'green'|'orange'|'blue'|'none').
 - ChartBlock: Charts. Props: collection, chartType ('bar'|'line'|'pie'|'donut'), xField, yField, title.
 - Table: Data grid table. Props: collection, columns [{title, dataIndex, key, sorter}].
+- ClipsBlock: Video & audio inspection/meeting player, transcript viewer, and AI action items generator. Props: collection, relatedRecordIdField, allowRecording.
+- MetricGridBlock: Multi-metric KPI cards grid. Props: collection, metrics [{key, title, field, aggregation, format}].
+- SmartChartBlock: Advanced BI chart with natural-language questioning. Props: collection, chartType, dimensionField, metricField, title.
+- MultiStepFormBlock: Progressive multi-step wizard. Props: collection, steps, isPublic.
+- BrainSearchBlock: Enterprise RAG knowledge search with citations. Props: collections, placeholder.
 
 ## Rules
 1. Never generate deep nested tree structures; always return a flat array list.

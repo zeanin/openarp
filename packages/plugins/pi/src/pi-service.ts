@@ -4,6 +4,7 @@ import { loadPiCodingAgent } from './loader';
 import type { SkillContext } from '@formai/shared';
 import { createTenantScopedTools } from './tool-bridge';
 import { FormAiTenantSessionManager } from './session-manager';
+import { initAgentHarnessEngine, runPiTurn, type RunPiTurnOptions, type RunPiTurnResult } from './harness-bridge';
 
 /**
  * Extract and join text from message content blocks.
@@ -68,6 +69,20 @@ export function assertPathInTenantWorkspace(targetPath: string, workspaceDir: st
 
 export class PiAgentService {
   constructor(private app: any) {}
+
+  /**
+   * Initializes the Agent-Native SQL sessions table and builtin harnesses
+   */
+  async initHarness(): Promise<void> {
+    await initAgentHarnessEngine();
+  }
+
+  /**
+   * Executes a Turn using the official ai-sdk-harness:pi with automated SQL session persistence
+   */
+  async runTurn(options: RunPiTurnOptions): Promise<RunPiTurnResult> {
+    return runPiTurn(options);
+  }
 
   /**
    * Creates an isolated, tenant-safe Pi Agent Session

@@ -7,3 +7,11 @@ export type { FieldTypeHandler } from './field-types';
 export { MigrationManager } from './migration';
 export type { Migration, MigrationRecord } from './migration';
 export { defineMetaCollections } from './meta-schema';
+export {
+  isPgliteRequested,
+  resolvePgliteDataDir,
+  getOrCreatePglite,
+  closePglite,
+  createPgliteDbExec,
+} from './pglite-adapter';
+export type { PgliteDbExec } from './pglite-adapter';

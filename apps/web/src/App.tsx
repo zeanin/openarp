@@ -68,6 +68,7 @@ import { AppLauncherPage } from './pages/AppLauncherPage';
 import { SchemaPage } from './pages/SchemaPage';
 import { AppManagementPage } from './pages/AppManagementPage';
 import { AppWorkspacePage } from './pages/AppWorkspacePage';
+import { ClipsPage } from './pages/modules/ClipsPage';
 import { AdminGuard } from './guards/AdminGuard';
 import { AppGuard } from './guards/AppGuard';
 import { FormaiRobotIcon } from './components/FormaiRobotIcon';
@@ -714,6 +715,8 @@ function AppRoutes({ currentUser, currentRole, onSignOut }: { currentUser: any; 
                 <Route path="apps" element={<AppManagementPage />} />
                 <Route path="apps/:appId" element={<AppWorkspacePage />} />
                 <Route path="apps/:appId/:tabKey" element={<AppWorkspacePage />} />
+                <Route path="clips" element={<ClipsPage />} />
+                <Route path="modules/clips" element={<ClipsPage />} />
                 <Route path="users" element={<UsersPage />} />
                 <Route path="files" element={<FilesPage />} />
                 <Route path="settings" element={<SettingsPage />} />

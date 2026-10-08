@@ -485,8 +485,11 @@ export class A2UIEngine {
         return res;
       }
 
-      const isDashboard = /dashboard/i.test(options.prompt);
-      const isSettings = /setting/i.test(options.prompt);
+      const isDashboard = /dashboard|看板|分析|度量|统计/i.test(options.prompt);
+      const isSettings = /setting|配置|系统设置/i.test(options.prompt);
+      const isInspectionOrClips = /video|clip|recording|inspection|meeting|现场|录像|录屏|排障|切片/i.test(options.prompt);
+      const isForms = /questionnaire|intake|问卷|收集|报名/i.test(options.prompt);
+      const isKnowledge = /knowledge|brain|wiki|sop|规程|知识库/i.test(options.prompt);
 
       console.log('[A2UIEngine] Multi-Agent Pipeline: Stage 1 (A2Architect Blueprint Generation)');
       const collection = options.collection || 'generic_records';
@@ -509,14 +512,41 @@ Available database collections as context: ${options.context?.collections?.join(
       } else if (isDashboard) {
         systemPrompt = `You are the A2Architect page structure designer. Create a logical enterprise application Dashboard page blueprint.
 Since this is a Dashboard, it should summarize multiple collections. Design a layout containing:
-1. Multiple 'StatisticBlock' blocks (KPI metrics) at the top. Specify the 'collection' and 'fields' to use for each statistic card.
-2. Multiple 'ChartBlock' blocks (visual trends/distribution). Specify the 'collection', 'fields', and 'title' for each chart.
+1. 'MetricGridBlock' or multiple 'StatisticBlock' blocks (KPI metrics) at the top. Specify the 'collection' and 'fields' to use.
+2. 'SmartChartBlock' or 'ChartBlock' blocks (visual trends/distribution). Specify the 'collection', 'fields', and 'title' for each chart.
 3. Chronological timeline ('TimelineBlock') or summary tables ('TableBlock').
 Use the available collections list below to bind each statistic and chart block to the correct database collection (e.g., if you have 'app_crm_deals', put collection='app_crm_deals' in the chart/statistic block).`;
 
         architectPrompt = `Generate a page blueprint for a dashboard view.
 User Prompt: "${options.prompt}"
 Available database collections to bind: ${options.context?.collections?.join(', ') || 'none'}`;
+      } else if (isInspectionOrClips) {
+        systemPrompt = `You are the A2Architect page structure designer. Create a logical enterprise application Video Inspection / Training blueprint.
+Since this view involves video/audio recording or inspection clips, design a layout containing:
+1. 'ClipsBlock' at the top/center for recording or viewing inspection clips and extracting AI action items.
+2. 'TableBlock' below for listing and managing the generated action items or tickets (collection='${collection}').
+Make sure the ClipsBlock has title='Inspection Video & Audio Clips' and collection='app_clips'.`;
+
+        architectPrompt = `Generate a page blueprint for a video inspection / clip-enabled business view.
+User Prompt: "${options.prompt}"
+Target Collection for tickets/records: "${collection}"
+Available database collections: ${options.context?.collections?.join(', ') || 'none'}`;
+      } else if (isForms) {
+        systemPrompt = `You are the A2Architect page structure designer. Create a logical enterprise application Multi-Step Form blueprint.
+Design a layout containing a 'MultiStepFormBlock' with progressive steps matching the user request.`;
+
+        architectPrompt = `Generate a page blueprint for a multi-step form view.
+User Prompt: "${options.prompt}"
+Target Collection: "${collection}"`;
+      } else if (isKnowledge) {
+        systemPrompt = `You are the A2Architect page structure designer. Create a logical enterprise application Knowledge Base blueprint.
+Design a layout containing:
+1. 'BrainSearchBlock' at the top for cited RAG search.
+2. 'TableBlock' or 'DetailsBlock' below for document records.`;
+
+        architectPrompt = `Generate a page blueprint for an enterprise knowledge base view.
+User Prompt: "${options.prompt}"
+Target Collection: "${collection}"`;
       }
 
       const blueprintRaw = await this.executePrompt(z.any(), architectPrompt, systemPrompt, options);
@@ -1001,6 +1031,81 @@ Available database collections to bind: ${options.context?.collections?.join(', 
               columns: tableColumns,
               rowSelection: true,
               pagination: { pageSize: 10, showSizeChanger: true },
+            },
+          });
+        } else if (block.type === 'ClipsBlock') {
+          const targetBlockCol = block.collection || 'app_clips';
+          components.push({
+            id: block.id,
+            type: 'ClipsBlock',
+            parentId: 'layout-grid',
+            sort: blockIndex,
+            props: {
+              title: block.title,
+              collection: targetBlockCol,
+              relatedRecordIdField: 'record_id',
+              allowRecording: true,
+              ...(block.options || {}),
+            },
+          });
+        } else if (block.type === 'MetricGridBlock') {
+          const targetBlockCol = block.collection || blueprint.collection;
+          components.push({
+            id: block.id,
+            type: 'MetricGridBlock',
+            parentId: 'layout-grid',
+            sort: blockIndex,
+            props: {
+              title: block.title,
+              collection: targetBlockCol,
+              metrics: block.options?.metrics || fields.map((f) => ({
+                key: f,
+                title: f.charAt(0).toUpperCase() + f.slice(1).replace(/_/g, ' '),
+                field: f,
+                aggregation: 'count',
+              })),
+            },
+          });
+        } else if (block.type === 'SmartChartBlock') {
+          const targetBlockCol = block.collection || blueprint.collection;
+          components.push({
+            id: block.id,
+            type: 'SmartChartBlock',
+            parentId: 'layout-grid',
+            sort: blockIndex,
+            props: {
+              title: block.title,
+              collection: targetBlockCol,
+              chartType: block.options?.chartType || 'bar',
+              dimensionField: block.options?.dimensionField || fields[0] || 'status',
+              metricField: block.options?.metricField || (fields.length > 1 ? fields[1] : undefined),
+            },
+          });
+        } else if (block.type === 'MultiStepFormBlock') {
+          const targetBlockCol = block.collection || blueprint.collection;
+          components.push({
+            id: block.id,
+            type: 'MultiStepFormBlock',
+            parentId: 'layout-grid',
+            sort: blockIndex,
+            props: {
+              title: block.title,
+              collection: targetBlockCol,
+              isPublic: true,
+              ...(block.options || {}),
+            },
+          });
+        } else if (block.type === 'BrainSearchBlock') {
+          const targetBlockCol = block.collection || blueprint.collection;
+          components.push({
+            id: block.id,
+            type: 'BrainSearchBlock',
+            parentId: 'layout-grid',
+            sort: blockIndex,
+            props: {
+              title: block.title,
+              collections: block.options?.collections || [targetBlockCol],
+              placeholder: 'Search knowledge base with citations...',
             },
           });
         }

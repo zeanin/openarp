@@ -9,6 +9,14 @@ export type { AnthropicConfig } from './llm/providers/anthropic';
 export { QwenProvider } from './llm/providers/qwen';
 export { MockLLMProvider } from './llm/providers/mock';
 export { generateStructured, zodToJsonSchema } from './llm/structured-output';
+export { FormAiLanguageModelBridge, createFormAiLanguageModelProvider } from './llm/formai-provider-bridge';
+export type {
+  LanguageModelV1CallOptions,
+  LanguageModelV1GenerateResult,
+  LanguageModelV1StreamResult,
+  LanguageModelV1StreamPart,
+  FormAiBridgeOptions,
+} from './llm/formai-provider-bridge';
 
 // A2Data
 export { A2DataEngine } from './a2data/engine';
@@ -57,4 +65,67 @@ export { CollectionSkillAutoGenerator } from './skills/collection-skill-generato
 export type { CrudExecutorFactory } from './skills/collection-skill-generator';
 export { SkillLogger, withLogging } from './skills/skill-logger';
 export type { SkillLogEntry } from './skills/skill-logger';
+
+// Domain Templates & Quality Baseline (ARP Phase 1)
+export * from './templates';
+
+// Proactive Runtime & Twin Graph Decision System (ARP Phase 2)
+export { ExternalDataConnector } from './connectors/external-data';
+export type {
+  ExternalDataSource,
+  TransformRule,
+  SyncResult,
+  SyncStrategy,
+} from './connectors/external-data';
+export { DecisionSimulationEngine } from './agent/decision-engine';
+export type {
+  DecisionRequest,
+  DecisionConstraint,
+  ScenarioOption,
+  ScenarioActionStep,
+  EvidenceItem,
+  DecisionReport,
+} from './agent/decision-engine';
+export { ProactiveAgentManager } from './agent/proactive-runner';
+export type {
+  ProactiveAgentConfig,
+  MetricThresholdRule,
+  InspectionViolation,
+  InspectionResult,
+} from './agent/proactive-runner';
+
+// Ecosystem & Platformization (ARP Phase 3)
+export { BlueprintMarketplace } from './marketplace/marketplace';
+export type {
+  MarketplaceBlueprintPackage,
+  MarketplaceFilter,
+  DeploymentOptions,
+  DeploymentResult,
+} from './marketplace/types';
+export { computeBlueprintDiff } from './compiler/blueprint-diff';
+export type {
+  BlueprintDiff,
+  CollectionDiff,
+  FieldDiff,
+  PageDiff,
+  WorkflowDiff,
+} from './compiler/blueprint-diff';
+export { IncrementalCompiler } from './compiler/incremental-compiler';
+export type { IncrementalMigrationResult } from './compiler/incremental-compiler';
+export { TenantAgentGovernanceManager } from './governance/tenant-governance';
+export type {
+  TenantAgentGovernanceConfig,
+  AgentQuota,
+  DataIsolationRule,
+  AuditPolicy,
+  AgentActivityLog,
+} from './governance/tenant-governance';
+
+// Relational Cross-Validation & Healing
+export { validateBlueprintIntegrity, autoRepairBlueprint } from './validation/cross-validator';
+export type { ValidationError, BlueprintValidationResult } from './validation/cross-validator';
+export type { DataChangeEvent } from './agent/proactive-runner';
+
+
+
 

@@ -20,6 +20,7 @@ import {
   TeamOutlined,
   ScheduleOutlined,
   BookOutlined,
+  VideoCameraOutlined,
 } from '@ant-design/icons';
 import { FormaiRobotIcon } from '../components/FormaiRobotIcon';
 
@@ -30,6 +31,7 @@ const { Title, Text } = Typography;
 const PLATFORM_MENU = [
   { key: '/admin/dashboard', label: 'Dashboard', icon: <DashboardOutlined /> },
   { key: '/admin/apps', label: 'Apps', icon: <AppstoreAddOutlined /> },
+  { key: '/admin/clips', label: 'Clips & Audio', icon: <VideoCameraOutlined /> },
   { key: '/admin/users', label: 'Users', icon: <UserOutlined /> },
   { key: '/admin/files', label: 'Files', icon: <FolderOutlined /> },
   { key: '/admin/settings', label: 'Settings', icon: <SettingOutlined /> },

@@ -21,11 +21,12 @@
     "clean": "rm -rf dist *.tsbuildinfo"
   },
   "dependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@formai/shared": "workspace:*",
-    "sequelize": "^6.37.0",
+    "bcrypt": "^5.1.0",
     "pg": "^8.12.0",
     "pg-hstore": "^2.3.4",
-    "bcrypt": "^5.1.0"
+    "sequelize": "^6.37.0"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.0",

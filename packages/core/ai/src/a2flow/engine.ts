@@ -55,6 +55,8 @@ Available node types:
 - destroy: Delete records. config: { collection, filter }
 - calculation: Evaluate expression. config: { expression, resultKey? }
 - http-request: Call external API. config: { url, method?, headers?, body? }
+- external-data-sync: Synchronize external data twin graph into internal collection. config: { sourceId, syncStrategy, targetCollection, transformRules: Array<{ sourceField, targetField, type? }> }
+- decision-simulation: Agentic decision & scenario simulator. config: { goal, collections: string[], targetMetric?, options? }
 - manual: Pause for human approval. config: { assignees?, title?, description? }
 - loop: Iterate array. config: { target, itemVar? }
 - parallel: Run branches in parallel. config: { branches: string[][] }

@@ -18,17 +18,22 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@formai/shared": "workspace:*",
-    "@formai/plugin": "workspace:*",
-    "@earendil-works/pi-ai": "^0.87.0",
+    "@agent-native/core": "^0.184.0",
+    "@ai-sdk/harness": "^1.0.121",
+    "@ai-sdk/harness-pi": "^1.0.123",
     "@earendil-works/pi-agent-core": "^0.87.0",
+    "@earendil-works/pi-ai": "^0.87.0",
     "@earendil-works/pi-coding-agent": "^0.87.0",
+    "@formai/plugin": "workspace:*",
+    "@formai/shared": "workspace:*",
+    "@formai/ai": "workspace:*",
+    "@formai/database": "workspace:*",
     "zod": "^3.23.0",
     "zod-to-json-schema": "^3.24.1"
   },
   "devDependencies": {
-    "koa": "^2.15.0",
     "@types/koa": "^2.15.0",
+    "koa": "^2.15.0",
     "tsup": "^8.0.0",
     "typescript": "^5.5.0",
     "vitest": "^2.0.0"
