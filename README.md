@@ -31,36 +31,36 @@ Rather than bolting a Copilot onto a rigid legacy database, OpenARP is designed 
 ```mermaid
 flowchart TD
     subgraph External["External World Dynamics"]
-        E1[Commodity Prices]
-        E2[Supply Chain Disruptions]
-        E3[Macroeconomic Signals]
-        E4[Competitor Intelligence]
+        E1["Commodity Prices"]
+        E2["Supply Chain Disruptions"]
+        E3["Macroeconomic Signals"]
+        E4["Competitor Intelligence"]
     end
 
     subgraph Internal["Internal Enterprise Operations"]
-        I1[Supply Chain & Inventory]
-        I2[Financial Ledgers]
-        I3[Sales & Orders]
-        I4[Resource Capacity]
+        I1["Supply Chain & Inventory"]
+        I2["Financial Ledgers"]
+        I3["Sales & Orders"]
+        I4["Resource Capacity"]
     end
 
     subgraph OpenARP["OpenARP Core Engine"]
-        DG[Dual-Graph Intelligence Layer]
-        ADE[Agentic Decision & Simulation Engine]
-        A2UI[Dynamic Schema & A2UI Generator]
+        DG["Dual-Graph Intelligence Layer"]
+        ADE["Agentic Decision & Simulation Engine"]
+        A2UI["Dynamic Schema & A2UI Generator"]
     end
 
     subgraph Execution["Action & Human-in-the-Loop"]
-        HITL{Decision Approver\n(1-Click Approval)}
-        ACT[Automated Workflow & System Execution]
+        HITL{"Decision Approver<br/>(1-Click Approval)"}
+        ACT["Automated Workflow & System Execution"]
     end
 
     External --> DG
     Internal --> DG
     DG --> ADE
-    ADE -- "Simulate Scenarios\nCalculate Financial Impact" --> A2UI
+    ADE -- "Simulate Scenarios & Financial Impact" --> A2UI
     A2UI --> HITL
-    HITL -- Approved --> ACT
+    HITL -- "Approved" --> ACT
     ACT -.-> Internal
 ```
 
