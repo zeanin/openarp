@@ -1,99 +1,132 @@
+<div align="center">
+
 # OpenARP
 
-> **Agentic Resource Planning (ARP): The Autonomous Decision & Planning Engine for Next-Generation Enterprises**  
-> *From passive "digital filing cabinets" to proactive, 24/7 decision-making brains.*
+### 🧠 Agentic Resource Planning: The Autonomous Decision & Planning Operating System
+
+<p align="center">
+  <b>Reimagining enterprise operations from static "digital filing cabinets" to proactive, 24/7 decision-making brains.</b>
+</p>
 
 [![License: Apache 2.0 with Commons Clause](https://img.shields.io/badge/License-Apache%202.0%20w%2F%20Commons%20Clause-blue.svg)](LICENSE)
-[![Node.js Version](https://img.shields.io/badge/Node.js-%3E%3D20.0.0-green.svg)](https://nodejs.org)
-[![pnpm Version](https://img.shields.io/badge/pnpm-%3E%3D9.0.0-orange.svg)](https://pnpm.io)
+[![GitHub Stars](https://img.shields.io/github/stars/zeanin/openarp?style=social)](https://github.com/zeanin/openarp)
+[![Node.js Version](https://img.shields.io/badge/Node.js-%3E%3D20.0.0-339933?logo=node.js&logoColor=white)](https://nodejs.org)
+[![pnpm Version](https://img.shields.io/badge/pnpm-%3E%3D9.0.0-F69220?logo=pnpm&logoColor=white)](https://pnpm.io)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+
+[**Explore Features**](#-core-capabilities) • [**Architecture**](#-architecture-overview) • [**Quick Start**](#-quick-start) • [**Tech Stack**](#-tech-stack) • [**Documentation**](./docs)
+
+<br/>
+
+<img src="./assets/openarp_hero_banner.jpg" alt="OpenARP Autonomous Enterprise Command Center" width="100%" style="border-radius: 8px; box-shadow: 0 8px 30px rgba(0,0,0,0.3);" />
+
+</div>
 
 ---
 
-## 💡 What is OpenARP?
+## 💡 Why OpenARP?
 
-For decades, enterprise operations have relied on **ERP (Enterprise Resource Planning)** systems. However, traditional ERPs are essentially sophisticated **"digital filing cabinets"**—architected strictly to record *what has already happened* for compliance and auditability.
+For decades, enterprises have relied on **ERP (Enterprise Resource Planning)** systems. While ERPs excel at recording historical transactions for accounting and audits, their rigid architectures were never engineered for proactive decision-making. 
 
-**OpenARP introduces a category-defining shift: Agentic Resource Planning (ARP).**  
-Rather than bolting a Copilot onto a rigid legacy database, OpenARP is designed from the ground up as an **autonomous decision and execution engine** that anticipates future scenarios and turns data into proactive business actions.
+Attaching an AI Copilot to a legacy database is like mounting a jet engine to a horse carriage—it speeds up data retrieval, but the core system remains a passive recording archive.
 
-| Dimension | Traditional ERP | OpenARP (Agentic Resource Planning) |
+**OpenARP introduces a category shift: Agentic Resource Planning (ARP).**
+
+| Dimension | Traditional ERP | OpenARP |
 | :--- | :--- | :--- |
-| **Core Nature** | Static "Digital Filing Cabinet" (records history) | Proactive "Enterprise Brain" (anticipates futures) |
-| **Data Scope** | Closed, siloed internal data | **Dual-Graph Architecture**: Internal operations + Real-time external world dynamics |
-| **Primary Output** | Delayed dashboards and passive reports | **Executable Actions & Strategies** with scenario simulations |
-| **Human Role** | Data analyst / Manual report compiler | **Decision Approver** (Human-in-the-Loop 1-click execution) |
-| **Responsiveness** | Post-incident review (lagging) | 24/7 autonomous monitoring & real-time mitigation |
+| **System Metaphor** | Passive "Digital Filing Cabinet" | Proactive "Enterprise Brain" |
+| **Information Scope** | Siloed internal data (finance, inventory, HR) | **Dual-Graph Perception**: Internal operations + Real-time external world signals |
+| **Primary Output** | Delayed dashboards and passive static reports | **Executable Actions & Strategies** with scenario simulations |
+| **Human Role** | Data analyst (manual report assembly) | **Decision Approver** (1-click approval & oversight) |
+| **Response Window** | Post-incident review (lagging days/weeks) | **24/7 Continuous Monitoring** with real-time risk mitigation |
 
 ---
 
-## ⚡ Core Architecture & Innovations
+## ✨ Core Capabilities
 
-```mermaid
-flowchart TD
-    subgraph External["External World Dynamics"]
-        E1["Commodity Prices"]
-        E2["Supply Chain Disruptions"]
-        E3["Macroeconomic Signals"]
-        E4["Competitor Intelligence"]
-    end
+### 1. 🌐 Dual-Graph Perception: Connecting Internal Operations with the World
 
-    subgraph Internal["Internal Enterprise Operations"]
-        I1["Supply Chain & Inventory"]
-        I2["Financial Ledgers"]
-        I3["Sales & Orders"]
-        I4["Resource Capacity"]
-    end
+<img src="./assets/openarp_hero_banner.jpg" alt="Dual-Graph Perception" width="100%" style="border-radius: 8px;" />
 
-    subgraph OpenARP["OpenARP Core Engine"]
-        DG["Dual-Graph Intelligence Layer"]
-        ADE["Agentic Decision & Simulation Engine"]
-        A2UI["Dynamic Schema & A2UI Generator"]
-    end
+Traditional software operates in a vacuum. OpenARP dynamically reconciles two interconnected knowledge graphs in real time:
+- **Internal Enterprise Graph:** Live inventory levels, production capacities, purchase orders, financial balances, and workforce allocations.
+- **External World Dynamic Graph:** Commodity spot prices, shipping routes & port congestions, geopolitical supply disruptions, competitor disclosures, and macroeconomic trends.
 
-    subgraph Execution["Action & Human-in-the-Loop"]
-        HITL{"Decision Approver<br/>(1-Click Approval)"}
-        ACT["Automated Workflow & System Execution"]
-    end
+> **OpenARP doesn't just tell you what happened inside; it predicts how external shifts affect your bottom line and formulates what you should do next.**
 
-    External --> DG
-    Internal --> DG
-    DG --> ADE
-    ADE -- "Simulate Scenarios & Financial Impact" --> A2UI
-    A2UI --> HITL
-    HITL -- "Approved" --> ACT
-    ACT -.-> Internal
+---
+
+### 2. 🎯 Action-First Decision Cockpit: From Reports to One-Click Execution
+
+<img src="./assets/openarp_decision_cockpit.jpg" alt="Action Simulation & Decision Cockpit" width="100%" style="border-radius: 8px;" />
+
+ERP systems generate charts for meetings; **OpenARP generates actions for execution**.
+- **Continuous Vigilance (7x24):** Autonomous AI agents continuously monitor the dual graph for anomalies and cost optimizations.
+- **Multi-Path Scenario Simulation:** Simulates multiple counter-strategies simultaneously (e.g., *Do Nothing (-$1.2M)* vs. *Alternative Supplier A (+$350K)* vs. *Forward Hedging (+$120K)*).
+- **Quantified P&L Impacts:** Calculates bottom-line financial effects, operational delivery times, and risk confidence scores before actions are taken.
+- **Human-in-the-Loop Approval:** Presents complete, validated action payloads for one-click executive sign-off.
+
+---
+
+### 3. 🧩 Dynamic Schema & Generative A2UI Engine
+
+<img src="./assets/formai_system_creation_ui.png" alt="Generative UI & Schema Engine" width="100%" style="border-radius: 8px;" />
+
+Enterprise needs evolve faster than development cycles. OpenARP integrates a runtime dynamic schema engine:
+- **Natural Language Schema Creation:** Describe business requirements to instantiate PostgreSQL database tables, relationships, and validation rules instantly.
+- **A2UI Generative Interfaces:** JSON Schema-driven components render rich, interactive approval cards, tables, forms, and workflows at runtime without re-compiling code.
+- **Zero-Downtime Adaptability:** Safely evolve business models and data collections on the fly while retaining enterprise data integrity.
+
+---
+
+## 🏛️ Architecture Overview
+
+```text
+  ┌─────────────────────────────────────────────────────────────────┐
+  │                    EXTERNAL WORLD SIGNALS                       │
+  │     Commodity Prices • Supply Disruptions • Macro Trends        │
+  └───────────────────────────────┬─────────────────────────────────┘
+                                  │
+                                  ▼
+ ┌───────────────────────────────────────────────────────────────────┐
+ │               OPENARP DUAL-GRAPH INTELLIGENCE CORE                │
+ │  ┌─────────────────────────┐         ┌─────────────────────────┐  │
+ │  │ External Dynamics Graph │ ◄──────►│ Internal Business Graph │  │
+ │  └─────────────────────────┘         └─────────────────────────┘  │
+ │                                 │                                 │
+ │                                 ▼                                 │
+ │  ┌─────────────────────────────────────────────────────────────┐  │
+ │  │             AGENTIC DECISION & SIMULATION ENGINE            │  │
+ │  │    • Anomaly Detection     • Multi-Path Scenario Sim        │  │
+ │  │    • P&L Impact Calculation• Executable Plan Generation     │  │
+ │  └──────────────────────────────┬──────────────────────────────┘  │
+ └─────────────────────────────────┼─────────────────────────────────┘
+                                   │
+                                   ▼
+ ┌───────────────────────────────────────────────────────────────────┐
+ │            A2UI INTERACTIVE COCKPIT & HUMAN-IN-THE-LOOP           │
+ │               [ Proactive Strategy & Impact Cards ]               │
+ │                   [ 🔘 1-Click Approve & Execute ]                │
+ └─────────────────────────────────┬─────────────────────────────────┘
+                                   │ Approved
+                                   ▼
+ ┌───────────────────────────────────────────────────────────────────┐
+ │                   AUTONOMOUS WORKFLOW EXECUTION                   │
+ │       Orders Placed • Inventory Reallocated • Suppliers Notified   │
+ └───────────────────────────────────────────────────────────────────┘
 ```
-
-### 1. 🌐 Dual-Graph Architecture
-Traditional software only looks inward. OpenARP fuses **internal enterprise data** (financials, inventory, order status) with **real-time external world signals** (market trends, raw material indices, logistics anomalies, competitor alerts). OpenARP tells you not only what happened inside, but *what the external world is doing to your business—and what you should do about it*.
-
-### 2. 🎯 Action-First Paradigm
-Dashboards require humans to spot anomalies and manually figure out what to do. OpenARP's AI Agents monitor the dual graph 24/7:
-- **Detects** impending operational bottlenecks or cost fluctuations.
-- **Simulates** viable mitigation scenarios in parallel.
-- **Calculates** quantitative balance sheet and operational impacts.
-- **Proposes** ready-to-execute action plans awaiting single-click leadership approval.
-
-### 3. 🧩 Dynamic Schema & Runtime Collections
-Schema flexibility without service downtime. Create, modify, and relate database collections on the fly. Real-time PostgreSQL schemas sync seamlessly without system compilation or rebuilds.
-
-### 4. 🖥️ A2UI: Generative Schema-Driven UI
-Interfaces adapt dynamically to the scenario at hand. Utilizing standardized JSON Schema definitions, OpenARP delivers reactive forms, interactive approval cockpits, and real-time visualization widgets at runtime.
-
-### 5. 🔌 Granular Modular Extensibility
-Every platform capability (Attribute-Based Access Control, Workflows, Notifications, File Storage, Audit Logging, Localization) is packaged as a plug-and-play plugin obeying strict lifecycle states (`load`, `install`, `upgrade`, `destroy`).
 
 ---
 
 ## 🛠 Tech Stack
 
 - **Monorepo Architecture:** Turborepo + pnpm workspaces
-- **Frontend Engine:** React 18 + Vite + Schema Engine + Vanilla CSS
-- **Backend Core:** Node.js + Koa + Dynamic Resourcer (REST/GraphQL routing)
-- **Data & Vector Stores:** PostgreSQL (with `pgvector` support) + Sequelize ORM + Redis
-- **Security & Permissions:** JWT + Attribute-Based Access Control (ABAC)
-- **Agent Integration:** Multi-provider LLM integration (OpenAI, Anthropic, Local LLMs)
-- **Containerization:** Docker & Docker Compose
+- **Frontend Stack:** React 18 + Vite + Schema Engine + Vanilla CSS
+- **Backend Core:** Node.js (>=20) + Koa + Dynamic Resourcer (REST/GraphQL routing)
+- **Database & Vectors:** PostgreSQL 16 (with `pgvector` extension) + Sequelize ORM + Redis 7
+- **AI & Agent Runtime:** Multi-provider LLM Layer (OpenAI, Anthropic, DeepSeek, Local LLMs)
+- **Security & RBAC/ABAC:** JWT authentication + Granular Attribute-Based Access Control
+- **DevOps & Containers:** Docker & Docker Compose
 
 ---
 
@@ -106,61 +139,66 @@ Every platform capability (Attribute-Based Access Control, Workflows, Notificati
 
 ### 2. Clone & Install
 ```bash
-git clone <repo-url> openarp
+git clone https://github.com/zeanin/openarp.git
 cd openarp
 pnpm install
 ```
 
-### 3. Configure Environment
-Copy the example environment configuration:
+### 3. Environment Configuration
+Create a `.env` file from the provided example:
 ```bash
 cp .env.example .env
 ```
-Fill in your database credentials and LLM API keys (e.g., `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`).
+Provide your database connection details and LLM API keys:
+```env
+OPENAI_API_KEY=your_openai_api_key_here
+# or ANTHROPIC_API_KEY=your_anthropic_api_key_here
+```
 
 ### 4. Start Infrastructure & Development Server
 ```bash
-# 1. Start PostgreSQL & Redis backing services
+# Start PostgreSQL & Redis services
 pnpm docker:up
 
-# 2. Run the monorepo dev server (Backend on :3000, Web UI on :5173)
+# Launch server (:3000) and web app (:5173) in dev mode
 pnpm dev
 ```
 
-Visit **`http://localhost:5173`** to access the OpenARP console.
+Open **`http://localhost:5173`** in your browser.
 
 ---
 
-## 📁 Repository Structure
+## 📦 Monorepo Structure
 
 ```text
 openarp/
 ├── apps/
-│   ├── server/               # OpenARP Core Backend (Koa + Plugin Runtime)
-│   └── web/                  # Dynamic Web Client (React + Schema-driven UI)
+│   ├── server/               # OpenARP Core Server (Koa + Plugin Engine)
+│   └── web/                  # Web Client (React + Schema-driven UI)
 ├── packages/
 │   ├── core/
 │   │   ├── ai/               # Agent orchestration & LLM abstraction
 │   │   ├── database/         # Dynamic Collection Manager & ORM adapter
-│   │   ├── resourcer/        # Declarative resource endpoint engine
-│   │   ├── schema-engine/    # Dynamic JSON Schema UI renderer
+│   │   ├── resourcer/        # Dynamic resource endpoint router
+│   │   ├── schema-engine/    # Runtime JSON Schema UI renderer
 │   │   └── server/           # OpenARP application container & lifecycle
-│   └── plugins/              # Pluggable modules (ACL, Workflows, Audit, etc.)
-├── docs/                     # Architecture whitepapers & technical guides
-└── docker-compose.yml        # Multi-container orchestration
+│   └── plugins/              # Modular plugins (ACL, Workflows, Audit, etc.)
+├── assets/                   # Architecture & UI showcase imagery
+├── docs/                     # Guides & Agentic Resource Planning whitepapers
+└── docker-compose.yml        # Infrastructure container orchestration
 ```
 
 ---
 
 ## 🐳 Production Deployment
 
-Deploy the full stack with Docker Compose:
+Run the complete production stack with Docker:
 
 ```bash
 # Build and run containers
 pnpm docker:up
 
-# Or build the container image manually:
+# Or build the application container directly:
 docker build -t openarp .
 ```
 
@@ -172,4 +210,4 @@ This project is licensed under the **Apache License 2.0 with Commons Clause Cond
 
 Under the Commons Clause condition, you are free to download, run, modify, and distribute the code for personal or internal use, but you **may not sell the software or use it to provide commercial hosting, cloud, or Software-as-a-Service (SaaS) platforms** to third parties.
 
-See the [LICENSE](file:///Users/landaa/Workspaces/formai/FormAI/LICENSE) file for full terms and details.
+See the [LICENSE](file:///Users/landaa/Workspaces/formai/FormAI/LICENSE) file for complete terms and details.
